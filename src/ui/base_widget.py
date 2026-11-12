@@ -213,10 +213,59 @@ class BaseDesktopWidget(QWidget):
                         self._drag_offset = None
                         event.accept()
                         return
-                self.move(event.globalPosition().toPoint() - self._drag_offset)
+                raw_pos = event.globalPosition().toPoint() - self._drag_offset
+                if self.config.snap_to_edges:
+                    raw_pos = self._snap_position(raw_pos)
+                self.move(raw_pos)
                 event.accept()
                 return
         super().mouseMoveEvent(event)
+
+    def _snap_position(self, pos: QPoint, snap_dist: int = 14, widget_gap: int = 8) -> QPoint:
+        """Snap widget position magnetically to screen edges and other visible widgets."""
+        x, y = pos.x(), pos.y()
+        w, h = self.width(), self.height()
+        center = QPoint(x + w // 2, y + h // 2)
+        screen = QApplication.screenAt(center) or QApplication.primaryScreen()
+
+        candidates_x: list[tuple[int, int]] = []  # (distance, snapped_x)
+        candidates_y: list[tuple[int, int]] = []  # (distance, snapped_y)
+
+        if screen is not None:
+            avail = screen.availableGeometry()
+            left_edge = avail.x()
+            right_edge = avail.x() + avail.width() - w
+            top_edge = avail.y()
+            bottom_edge = avail.y() + avail.height() - h
+
+            for edge_x in (left_edge, right_edge):
+                d = abs(x - edge_x)
+                if d <= snap_dist:
+                    candidates_x.append((d, edge_x))
+            for edge_y in (top_edge, bottom_edge):
+                d = abs(y - edge_y)
+                if d <= snap_dist:
+                    candidates_y.append((d, edge_y))
+
+        # Snap to other visible SystemBox widgets (edge alignment & clean gap docking)
+        for other in QApplication.topLevelWidgets():
+            if other is self or not isinstance(other, BaseDesktopWidget) or not other.isVisible():
+                continue
+            ox, oy, ow, oh = other.x(), other.y(), other.width(), other.height()
+            for target_x in (ox, ox + ow - w, ox + ow + widget_gap, ox - w - widget_gap):
+                d = abs(x - target_x)
+                if d <= snap_dist:
+                    candidates_x.append((d, target_x))
+            for target_y in (oy, oy + oh - h, oy + oh + widget_gap, oy - h - widget_gap):
+                d = abs(y - target_y)
+                if d <= snap_dist:
+                    candidates_y.append((d, target_y))
+
+        if candidates_x:
+            x = min(candidates_x, key=lambda item: item[0])[1]
+        if candidates_y:
+            y = min(candidates_y, key=lambda item: item[0])[1]
+        return QPoint(x, y)
 
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
         if event.button() == Qt.MouseButton.LeftButton:

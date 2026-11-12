@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 
+from PySide6.QtCore import QPoint
 from PySide6.QtWidgets import QApplication
 
 from src.config import AppConfig
@@ -78,3 +79,16 @@ def test_widgets_update_scaling_and_compact_mode() -> None:
     clock.close()
     gpu.close()
     cpu.close()
+
+
+def test_widget_edge_snapping() -> None:
+    app = _ensure_qapp()
+    cfg = AppConfig()
+    clock = ClockWidget(cfg)
+    screen = app.primaryScreen()
+    if screen is not None:
+        avail = screen.availableGeometry()
+        snapped = clock._snap_position(QPoint(avail.x() + 8, avail.y() + 10), snap_dist=14)
+        assert snapped.x() == avail.x()
+        assert snapped.y() == avail.y()
+    clock.close()

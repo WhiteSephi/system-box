@@ -4,6 +4,10 @@ Alle relevanten Änderungen an diesem Projekt werden in dieser Datei dokumentier
 Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/),
 und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 
+## [0.6.0] - 2026-11-12
+### Added
+- Magnetisches Einrasten (Screen & Widget Snapping) beim Verschieben: Widgets docken automatisch an Bildschirmrändern sowie bündig (oder mit sauberem Abstand) an anderen SystemBox-Widgets an (`snap_to_edges`, abschaltbar im Tab `Allgemein`).
+
 ## [0.5.4] - 2026-11-12
 ### Changed
 - Bezeichnung der Einzelkern-Spitzenauslastung im `CPU & System`-Widget und den Einstellungen von `Peak` auf `Max-Kern` geändert.

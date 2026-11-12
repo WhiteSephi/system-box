@@ -91,6 +91,7 @@ class AppConfig:
     opacity: int = 85  # 20..100 %
     always_on_top: bool = False
     locked_pos: bool = False
+    snap_to_edges: bool = True
     autostart: bool = False
 
     # Settings Dialog Geometry

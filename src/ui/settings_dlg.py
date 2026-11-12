@@ -155,8 +155,10 @@ class SettingsDialog(QDialog):
 
         self.chk_always_on_top = QCheckBox("Alle Widgets immer im Vordergrund halten")
         self.chk_locked_pos = QCheckBox("Positionen aller Widgets sperren")
+        self.chk_snap_edges = QCheckBox("Magnetisches Einrasten an Bildschirmrändern && Widgets")
         form.addRow("", self.chk_always_on_top)
         form.addRow("", self.chk_locked_pos)
+        form.addRow("", self.chk_snap_edges)
         layout.addWidget(grp_global)
 
         # Per-widget toggles & scaling
@@ -412,6 +414,7 @@ class SettingsDialog(QDialog):
         self.sld_opacity.setValue(self.config.opacity)
         self.chk_always_on_top.setChecked(self.config.always_on_top)
         self.chk_locked_pos.setChecked(self.config.locked_pos)
+        self.chk_snap_edges.setChecked(self.config.snap_to_edges)
 
         for key, (chk_en, spn_sc) in self._widget_checks.items():
             wc = self.config.get_widget(key)
@@ -443,6 +446,7 @@ class SettingsDialog(QDialog):
         self.config.opacity = self.sld_opacity.value()
         self.config.always_on_top = self.chk_always_on_top.isChecked()
         self.config.locked_pos = self.chk_locked_pos.isChecked()
+        self.config.snap_to_edges = self.chk_snap_edges.isChecked()
 
         for key, (chk_en, spn_sc) in self._widget_checks.items():
             wc = self.config.get_widget(key)
