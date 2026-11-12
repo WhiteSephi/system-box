@@ -159,7 +159,13 @@ class CpuSystemWidget(BaseDesktopWidget):
         self.graph_cpu.push_value(cpu.cpu_percent, 100.0)
 
         self.lbl_ram.setText(f"RAM: {cpu.ram_used_gb:.1f} / {cpu.ram_total_gb:.1f} GB")
-        self.lbl_ram_pct.setText(f"{cpu.ram_percent:.1f} %")
+        ram_right = f"{cpu.ram_percent:.1f} %"
+        if self.config.cpu_show_page_faults:
+            if cpu.page_faults_per_sec is not None:
+                ram_right += f" • PF: {cpu.page_faults_per_sec:.0f}/s"
+            elif cpu.swap_total_gb > 0:
+                ram_right += f" • Swap: {cpu.swap_used_gb:.1f} GB"
+        self.lbl_ram_pct.setText(ram_right)
         self.graph_ram.push_value(cpu.ram_percent, 100.0)
 
         if self.config.cpu_show_disk_io:

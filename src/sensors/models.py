@@ -50,6 +50,10 @@ class CpuSystemSample:
     ram_used_gb: float = 0.0
     ram_total_gb: float = 0.0
     ram_percent: float = 0.0
+    swap_used_gb: float = 0.0
+    swap_total_gb: float = 0.0
+    swap_percent: float = 0.0
+    page_faults_per_sec: float | None = None
     disk_read_mb_s: float = 0.0
     disk_write_mb_s: float = 0.0
     uptime_seconds: int = 0

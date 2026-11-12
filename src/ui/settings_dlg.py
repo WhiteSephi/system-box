@@ -99,8 +99,10 @@ class SettingsDialog(QDialog):
         self.tabs = QTabWidget()
         root.addWidget(self.tabs, 1)
 
-        self.tabs.addTab(self._build_general_tab(), "Allgemein && Widgets")
-        self.tabs.addTab(self._build_sensors_tab(), "Sensoren && Metriken")
+        self.tabs.addTab(self._build_general_tab(), "Allgemein")
+        self.tabs.addTab(self._build_clock_tab(), "Uhrzeit && Datum")
+        self.tabs.addTab(self._build_gpu_tab(), "GPU-Monitor")
+        self.tabs.addTab(self._build_cpu_tab(), "CPU && System")
         self.tabs.addTab(self._build_theme_tab(), "Design && Themes")
         self.tabs.addTab(self._build_about_tab(), "Über SystemBox")
 
@@ -178,13 +180,6 @@ class SettingsDialog(QDialog):
             self._widget_checks[key] = (chk_en, chk_cmp, spn_sc)
 
         layout.addWidget(grp_widgets)
-        layout.addStretch(1)
-        return tab
-
-    def _build_sensors_tab(self) -> QWidget:
-        tab = QWidget()
-        layout = QVBoxLayout(tab)
-        layout.setSpacing(10)
 
         grp_poll = QGroupBox("Abfrage && Verlauf")
         p_form = QFormLayout(grp_poll)
@@ -200,7 +195,32 @@ class SettingsDialog(QDialog):
         p_form.addRow("Graph-Verlaufslänge:", self.spn_history)
         layout.addWidget(grp_poll)
 
-        grp_gpu = QGroupBox("GPU-Metriken")
+        layout.addStretch(1)
+        return tab
+
+    def _build_clock_tab(self) -> QWidget:
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setSpacing(10)
+
+        grp_clk = QGroupBox("Anzeige-Optionen (Uhrzeit && Datum)")
+        c_form = QFormLayout(grp_clk)
+        self.chk_clock_24h = QCheckBox("24-Stunden-Format verwenden")
+        self.chk_clock_sec = QCheckBox("Sekunden-Fortschrittsbalken anzeigen")
+        self.chk_clock_uptime = QCheckBox("System-Uptime anzeigen")
+        c_form.addRow("", self.chk_clock_24h)
+        c_form.addRow("", self.chk_clock_sec)
+        c_form.addRow("", self.chk_clock_uptime)
+        layout.addWidget(grp_clk)
+        layout.addStretch(1)
+        return tab
+
+    def _build_gpu_tab(self) -> QWidget:
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setSpacing(10)
+
+        grp_gpu = QGroupBox("GPU-Sensorik && Anzeige")
         g_form = QFormLayout(grp_gpu)
         self.cmb_gpu = QComboBox()
         if self._gpus:
@@ -218,21 +238,23 @@ class SettingsDialog(QDialog):
         self.spn_vram_warn.setSuffix(" %")
         g_form.addRow("VRAM-Warnschwelle:", self.spn_vram_warn)
         layout.addWidget(grp_gpu)
+        layout.addStretch(1)
+        return tab
 
-        grp_cpu_clk = QGroupBox("CPU- && Uhr-Optionen")
-        c_form = QFormLayout(grp_cpu_clk)
+    def _build_cpu_tab(self) -> QWidget:
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setSpacing(10)
+
+        grp_cpu = QGroupBox("CPU, RAM && System-Metriken")
+        c_form = QFormLayout(grp_cpu)
         self.chk_cpu_max_core = QCheckBox("Peak-Kern-Auslastung anzeigen (höchster Einzelkern)")
+        self.chk_cpu_page_faults = QCheckBox("PageFaults / Swap neben RAM anzeigen")
         self.chk_cpu_disk = QCheckBox("Disk I/O (Lesen/Schreiben MB/s) anzeigen")
-        self.chk_clock_sec = QCheckBox("Sekunden-Fortschrittsbalken in der Uhr anzeigen")
-        self.chk_clock_uptime = QCheckBox("System-Uptime in der Uhr anzeigen")
-        self.chk_clock_24h = QCheckBox("24-Stunden-Format verwenden")
         c_form.addRow("", self.chk_cpu_max_core)
+        c_form.addRow("", self.chk_cpu_page_faults)
         c_form.addRow("", self.chk_cpu_disk)
-        c_form.addRow("", self.chk_clock_sec)
-        c_form.addRow("", self.chk_clock_uptime)
-        c_form.addRow("", self.chk_clock_24h)
-        layout.addWidget(grp_cpu_clk)
-
+        layout.addWidget(grp_cpu)
         layout.addStretch(1)
         return tab
 
@@ -342,6 +364,7 @@ class SettingsDialog(QDialog):
         self.chk_gpu_power_fan.setChecked(self.config.gpu_show_power_fan)
         self.spn_vram_warn.setValue(self.config.gpu_vram_warn_percent)
         self.chk_cpu_max_core.setChecked(self.config.cpu_show_max_core)
+        self.chk_cpu_page_faults.setChecked(self.config.cpu_show_page_faults)
         self.chk_cpu_disk.setChecked(self.config.cpu_show_disk_io)
         self.chk_clock_sec.setChecked(self.config.clock_show_seconds)
         self.chk_clock_uptime.setChecked(self.config.clock_show_uptime)
@@ -370,6 +393,7 @@ class SettingsDialog(QDialog):
         self.config.gpu_show_power_fan = self.chk_gpu_power_fan.isChecked()
         self.config.gpu_vram_warn_percent = self.spn_vram_warn.value()
         self.config.cpu_show_max_core = self.chk_cpu_max_core.isChecked()
+        self.config.cpu_show_page_faults = self.chk_cpu_page_faults.isChecked()
         self.config.cpu_show_disk_io = self.chk_cpu_disk.isChecked()
         self.config.clock_show_seconds = self.chk_clock_sec.isChecked()
         self.config.clock_show_uptime = self.chk_clock_uptime.isChecked()

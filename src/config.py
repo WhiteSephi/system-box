@@ -108,6 +108,7 @@ class AppConfig:
     clock_24h: bool = True
     cpu_show_max_core: bool = True
     cpu_show_disk_io: bool = True
+    cpu_show_page_faults: bool = False
     gpu_show_power_fan: bool = True
     gpu_vram_warn_percent: int = 90
 
