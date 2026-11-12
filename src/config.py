@@ -52,7 +52,6 @@ class WidgetConfig:
     pos_y: int = -1
     width: int = 320
     height: int = 240
-    compact_mode: bool = False
     scale_percent: int | None = None  # None = inherit global ui_scale_percent
     opacity: int | None = None  # None = inherit global opacity
     always_on_top: bool | None = None  # None = inherit global always_on_top
@@ -61,7 +60,6 @@ class WidgetConfig:
     def sanitize(self, default_width: int = 320, default_height: int = 240) -> None:
         """Clamp and validate widget configuration values."""
         self.enabled = bool(self.enabled)
-        self.compact_mode = bool(self.compact_mode)
         self.width = max(140, min(1600, int(self.width or default_width)))
         self.height = max(60, min(1400, int(self.height or default_height)))
         self.pos_x = int(self.pos_x) if isinstance(self.pos_x, (int, float)) else -1

@@ -159,27 +159,25 @@ class SettingsDialog(QDialog):
         form.addRow("", self.chk_locked_pos)
         layout.addWidget(grp_global)
 
-        # Per-widget toggles & compact mode
+        # Per-widget toggles & scaling
         grp_widgets = QGroupBox("Einzelne Desktop-Widgets")
         w_form = QFormLayout(grp_widgets)
 
-        self._widget_checks: dict[str, tuple[QCheckBox, QCheckBox, QSpinBox]] = {}
+        self._widget_checks: dict[str, tuple[QCheckBox, QSpinBox]] = {}
         for key, label in (("clock", "Uhrzeit & Datum"), ("gpu", "GPU-Monitor"), ("cpu", "CPU & System")):
             row = QHBoxLayout()
             chk_en = QCheckBox("Aktiv")
-            chk_cmp = QCheckBox("Kompaktmodus (nur Zahlen)")
             spn_sc = QSpinBox()
             spn_sc.setRange(0, 300)
             spn_sc.setSpecialValueText("Global")
             spn_sc.setSuffix(" %")
             spn_sc.setToolTip("Individuelle Skalierung (0 = Global übernehmen)")
             row.addWidget(chk_en)
-            row.addWidget(chk_cmp)
             row.addStretch(1)
             row.addWidget(QLabel("Skalierung:"))
             row.addWidget(spn_sc)
             w_form.addRow(f"{label}:", row)
-            self._widget_checks[key] = (chk_en, chk_cmp, spn_sc)
+            self._widget_checks[key] = (chk_en, spn_sc)
 
         layout.addWidget(grp_widgets)
 
@@ -415,10 +413,9 @@ class SettingsDialog(QDialog):
         self.chk_always_on_top.setChecked(self.config.always_on_top)
         self.chk_locked_pos.setChecked(self.config.locked_pos)
 
-        for key, (chk_en, chk_cmp, spn_sc) in self._widget_checks.items():
+        for key, (chk_en, spn_sc) in self._widget_checks.items():
             wc = self.config.get_widget(key)
             chk_en.setChecked(wc.enabled)
-            chk_cmp.setChecked(wc.compact_mode)
             spn_sc.setValue(wc.scale_percent if wc.scale_percent is not None else 0)
 
         self.spn_interval.setValue(self.config.refresh_interval_ms)
@@ -447,10 +444,9 @@ class SettingsDialog(QDialog):
         self.config.always_on_top = self.chk_always_on_top.isChecked()
         self.config.locked_pos = self.chk_locked_pos.isChecked()
 
-        for key, (chk_en, chk_cmp, spn_sc) in self._widget_checks.items():
+        for key, (chk_en, spn_sc) in self._widget_checks.items():
             wc = self.config.get_widget(key)
             wc.enabled = chk_en.isChecked()
-            wc.compact_mode = chk_cmp.isChecked()
             sc_val = spn_sc.value()
             wc.scale_percent = sc_val if sc_val >= 70 else None
 

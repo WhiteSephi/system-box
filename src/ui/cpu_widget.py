@@ -33,12 +33,6 @@ class CpuSystemWidget(BaseDesktopWidget):
         hdr.addWidget(self.lbl_temp_pill)
         self._layout.addLayout(hdr)
 
-        # Compact line
-        self.lbl_compact = QLabel("CPU: --")
-        self.lbl_compact.setWordWrap(True)
-        self.lbl_compact.setVisible(False)
-        self._layout.addWidget(self.lbl_compact)
-
         # Section 1: CPU
         self._sec_cpu = QWidget()
         v1 = QVBoxLayout(self._sec_cpu)
@@ -119,7 +113,6 @@ class CpuSystemWidget(BaseDesktopWidget):
         self._layout.addWidget(self._sec_disk, 1)
 
     def on_apply_config(self) -> None:
-        compact = self.config.get_widget("cpu").compact_mode
         m = self.sc(9)
         self._layout.setContentsMargins(m, self.sc(7), m, self.sc(7))
         self._layout.setSpacing(self.sc(4))
@@ -143,9 +136,6 @@ class CpuSystemWidget(BaseDesktopWidget):
         self.lbl_disk_w.setFont(sub_font)
         self.lbl_disk_w.setStyleSheet(f"color: {self.config.secondary_color};")
 
-        self.lbl_compact.setFont(self.make_font(9.5, bold=True))
-        self.lbl_compact.setStyleSheet(f"color: {self.config.title_color};")
-
         self.graph_cpu.set_colors(self.config.primary_color, self.config.grid_color)
         self.graph_ram.set_colors(self.config.secondary_color, self.config.grid_color)
         self.graph_pf.set_colors(self.config.vram_color, self.config.grid_color)
@@ -155,17 +145,11 @@ class CpuSystemWidget(BaseDesktopWidget):
             g.set_ui_scale(self.ui_scale)
             g.set_history_length(self.config.history_seconds)
 
-        self.lbl_compact.setVisible(compact)
-        self._sec_cpu.setVisible(not compact)
-        self._sec_ram.setVisible(not compact)
-        self._sec_pf.setVisible((not compact) and self.config.cpu_show_page_faults)
-        self._sec_disk.setVisible((not compact) and self.config.cpu_show_disk_io)
+        self._sec_pf.setVisible(self.config.cpu_show_page_faults)
+        self._sec_disk.setVisible(self.config.cpu_show_disk_io)
 
-        if compact:
-            self.setMinimumSize(self.sc(180), self.sc(62))
-        else:
-            active_sections = 2 + int(self.config.cpu_show_page_faults) + int(self.config.cpu_show_disk_io)
-            self.setMinimumSize(self.sc(220), self.sc(44 + active_sections * 46))
+        active_sections = 2 + int(self.config.cpu_show_page_faults) + int(self.config.cpu_show_disk_io)
+        self.setMinimumSize(self.sc(220), self.sc(44 + active_sections * 46))
 
     def update_snapshot(self, snapshot: SystemSnapshot) -> None:
         """Render the latest CPU, RAM and Disk I/O telemetry."""
@@ -199,11 +183,3 @@ class CpuSystemWidget(BaseDesktopWidget):
             self.lbl_disk_r.setText(f"Disk R: {cpu.disk_read_mb_s:.1f} MB/s")
             self.lbl_disk_w.setText(f"W: {cpu.disk_write_mb_s:.1f} MB/s")
             self.graph_disk.push_value(cpu.disk_read_mb_s, secondary_value=cpu.disk_write_mb_s)
-
-        parts = [f"CPU {cpu.cpu_percent:.0f}%"]
-        if cpu.cpu_freq_mhz:
-            parts.append(f"{cpu.cpu_freq_mhz / 1000.0:.2f} GHz")
-        if cpu.cpu_temp_c is not None:
-            parts.append(f"{cpu.cpu_temp_c:.0f}°C")
-        parts.append(f"RAM {cpu.ram_percent:.0f}%")
-        self.lbl_compact.setText(" • ".join(parts))

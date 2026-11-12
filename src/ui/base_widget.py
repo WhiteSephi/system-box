@@ -231,13 +231,7 @@ class BaseDesktopWidget(QWidget):
         super().mouseDoubleClickEvent(event)
 
     def contextMenuEvent(self, event: QContextMenuEvent) -> None:
-        wc = self.config.get_widget(self.widget_key)
         menu = QMenu(self)
-
-        act_compact = QAction("Kompaktmodus (nur Zahlen)", menu, checkable=True)
-        act_compact.setChecked(wc.compact_mode)
-        act_compact.triggered.connect(self._toggle_compact)
-        menu.addAction(act_compact)
 
         act_lock = QAction("Position sperren", menu, checkable=True)
         act_lock.setChecked(self.config.effective_locked_pos(self.widget_key))
@@ -266,12 +260,6 @@ class BaseDesktopWidget(QWidget):
         menu.addAction(act_quit)
 
         menu.exec(event.globalPos())
-
-    def _toggle_compact(self, checked: bool) -> None:
-        self.config.get_widget(self.widget_key).compact_mode = checked
-        self.config.save()
-        self.apply_config()
-        self.config_changed.emit()
 
     def _toggle_lock(self, checked: bool) -> None:
         self.config.get_widget(self.widget_key).locked_pos = checked

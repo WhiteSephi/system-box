@@ -35,12 +35,6 @@ class GpuWidget(BaseDesktopWidget):
         hdr.addWidget(self.lbl_throttle)
         self._layout.addLayout(hdr)
 
-        # Compact single-line summary
-        self.lbl_compact = QLabel("GPU: --")
-        self.lbl_compact.setWordWrap(True)
-        self.lbl_compact.setVisible(False)
-        self._layout.addWidget(self.lbl_compact)
-
         # Section 1: Utilization & Clock
         self._sec_util = QWidget()
         v1 = QVBoxLayout(self._sec_util)
@@ -97,7 +91,6 @@ class GpuWidget(BaseDesktopWidget):
         self._layout.addWidget(self._sec_vram, 1)
 
     def on_apply_config(self) -> None:
-        compact = self.config.get_widget("gpu").compact_mode
         m = self.sc(9)
         self._layout.setContentsMargins(m, self.sc(7), m, self.sc(7))
         self._layout.setSpacing(self.sc(4))
@@ -122,9 +115,6 @@ class GpuWidget(BaseDesktopWidget):
         self.lbl_power.setFont(val_font)
         self.lbl_power.setStyleSheet(f"color: {self.config.secondary_color};")
 
-        self.lbl_compact.setFont(self.make_font(9.5, bold=True))
-        self.lbl_compact.setStyleSheet(f"color: {self.config.title_color};")
-
         self.graph_util.set_colors(self.config.primary_color, self.config.grid_color)
         self.graph_temp.set_colors(self.config.temp_color, self.config.grid_color, self.config.secondary_color)
         self.graph_vram.set_colors(self.config.vram_color, self.config.grid_color)
@@ -133,15 +123,7 @@ class GpuWidget(BaseDesktopWidget):
             g.set_ui_scale(self.ui_scale)
             g.set_history_length(self.config.history_seconds)
 
-        self.lbl_compact.setVisible(compact)
-        self._sec_util.setVisible(not compact)
-        self._sec_temp.setVisible(not compact)
-        self._sec_vram.setVisible(not compact)
-
-        if compact:
-            self.setMinimumSize(self.sc(180), self.sc(62))
-        else:
-            self.setMinimumSize(self.sc(220), self.sc(175))
+        self.setMinimumSize(self.sc(220), self.sc(175))
 
     def update_snapshot(self, snapshot: SystemSnapshot) -> None:
         """Render the latest GPU telemetry sample."""
@@ -157,7 +139,6 @@ class GpuWidget(BaseDesktopWidget):
             self.lbl_power.setText("")
             self.lbl_vram_used.setText("VRAM: --")
             self.lbl_vram_total.setText("")
-            self.lbl_compact.setText("Keine GPU-Sensoren verfügbar")
             self.lbl_throttle.setVisible(False)
             return
 
@@ -216,13 +197,3 @@ class GpuWidget(BaseDesktopWidget):
         else:
             self.lbl_vram_used.setText("VRAM: --")
             self.lbl_vram_total.setText("")
-
-        # Compact text
-        parts = [f"GPU {util_txt}"]
-        if gpu.temp_c is not None:
-            parts.append(f"{gpu.temp_c:.0f}°C")
-        if gpu.vram_used_mb is not None and gpu.vram_total_mb:
-            parts.append(f"{gpu.vram_used_mb / 1024.0:.1f}/{gpu.vram_total_mb / 1024.0:.1f} GB")
-        if self.config.gpu_show_power_fan and gpu.power_watts is not None:
-            parts.append(f"{gpu.power_watts:.0f}W")
-        self.lbl_compact.setText(" • ".join(parts))

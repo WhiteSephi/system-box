@@ -14,7 +14,6 @@ def test_config_roundtrip_and_clamping(tmp_path: Path) -> None:
     cfg.ui_scale_percent = 999
     cfg.opacity = 5
     cfg.refresh_interval_ms = 50
-    cfg.get_widget("gpu").compact_mode = True
     cfg.get_widget("gpu").scale_percent = 250
     cfg.save(cfg_file)
 
@@ -22,7 +21,6 @@ def test_config_roundtrip_and_clamping(tmp_path: Path) -> None:
     assert loaded.ui_scale_percent == 300
     assert loaded.opacity == 20
     assert loaded.refresh_interval_ms == 500
-    assert loaded.get_widget("gpu").compact_mode is True
     assert loaded.effective_scale("gpu") == 2.5
     assert loaded.effective_scale("clock") == 3.0
 

@@ -42,7 +42,7 @@ class ClockWidget(BaseDesktopWidget):
     def update_snapshot(self, snapshot: SystemSnapshot) -> None:
         """Update uptime from the latest system snapshot."""
         self._uptime_seconds = snapshot.cpu.uptime_seconds
-        if self.config.clock_show_uptime and not self.config.get_widget("clock").compact_mode:
+        if self.config.clock_show_uptime:
             self.update()
 
     def on_apply_config(self) -> None:
@@ -56,7 +56,6 @@ class ClockWidget(BaseDesktopWidget):
         painter.setRenderHint(QPainter.RenderHint.TextAntialiasing, True)
 
         now = datetime.now()
-        compact = self.config.get_widget("clock").compact_mode
         w = float(self.width())
         h = float(self.height())
         pad = float(self.sc(12))
@@ -70,24 +69,6 @@ class ClockWidget(BaseDesktopWidget):
 
         time_str = now.strftime("%H:%M") if self.config.clock_24h else now.strftime("%I:%M %p")
 
-        if compact:
-            # Compact "numbers only" mode
-            time_font = QFont("Segoe UI", 10, QFont.Weight.Bold)
-            time_font.setPointSizeF(max(12.0, min(h * 0.42, w * 0.22)))
-            painter.setFont(time_font)
-            painter.setPen(title_col)
-            time_rect = QRectF(pad, pad * 0.5, w - 2 * pad, h * 0.58)
-            painter.drawText(time_rect, Qt.AlignmentFlag.AlignCenter, time_str)
-
-            date_font = self.make_font(10.0, bold=False)
-            painter.setFont(date_font)
-            painter.setPen(muted_col)
-            date_rect = QRectF(pad, h * 0.58, w - 2 * pad, h * 0.34)
-            painter.drawText(date_rect, Qt.AlignmentFlag.AlignCenter, now.strftime("%d.%m.%Y"))
-            painter.end()
-            return
-
-        # Full Rainmeter-inspired layout
         # 1. Big Time
         time_h = h * 0.40
         time_font = QFont("Segoe UI", 10, QFont.Weight.Bold)

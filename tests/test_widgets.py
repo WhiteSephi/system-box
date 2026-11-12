@@ -75,14 +75,6 @@ def test_widgets_update_scaling_and_compact_mode() -> None:
     assert gpu.lbl_throttle.isVisibleTo(gpu)
     assert not cpu.lbl_temp_pill.isVisibleTo(cpu)
 
-    # Toggle compact mode
-    cfg.get_widget("gpu").compact_mode = True
-    cfg.get_widget("cpu").compact_mode = True
-    gpu.apply_config()
-    cpu.apply_config()
-    assert gpu.lbl_compact.isVisibleTo(gpu)
-    assert cpu.lbl_compact.isVisibleTo(cpu)
-
     clock.close()
     gpu.close()
     cpu.close()
