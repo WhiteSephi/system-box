@@ -99,9 +99,9 @@ class SettingsDialog(QDialog):
         self.tabs = QTabWidget()
         root.addWidget(self.tabs, 1)
 
-        self.tabs.addTab(self._build_general_tab(), "Allgemein & Widgets")
-        self.tabs.addTab(self._build_sensors_tab(), "Sensoren & Gamer-Optionen")
-        self.tabs.addTab(self._build_theme_tab(), "Design & Themes")
+        self.tabs.addTab(self._build_general_tab(), "Allgemein && Widgets")
+        self.tabs.addTab(self._build_sensors_tab(), "Sensoren && Metriken")
+        self.tabs.addTab(self._build_theme_tab(), "Design && Themes")
         self.tabs.addTab(self._build_about_tab(), "Über SystemBox")
 
         # Action Buttons
@@ -125,7 +125,7 @@ class SettingsDialog(QDialog):
         layout.setSpacing(10)
 
         # Global appearance
-        grp_global = QGroupBox("Globale Darstellung & Verhalten")
+        grp_global = QGroupBox("Globale Darstellung && Verhalten")
         form = QFormLayout(grp_global)
 
         scale_row = QHBoxLayout()
@@ -147,7 +147,7 @@ class SettingsDialog(QDialog):
         self.sld_opacity.valueChanged.connect(lambda v: self.lbl_opacity_val.setText(f"{v} %"))
         op_row.addWidget(self.sld_opacity, 1)
         op_row.addWidget(self.lbl_opacity_val)
-        form.addRow("Transparenz:", op_row)
+        form.addRow("Deckkraft:", op_row)
 
         self.chk_always_on_top = QCheckBox("Alle Widgets immer im Vordergrund halten")
         self.chk_locked_pos = QCheckBox("Positionen aller Widgets sperren")
@@ -186,7 +186,7 @@ class SettingsDialog(QDialog):
         layout = QVBoxLayout(tab)
         layout.setSpacing(10)
 
-        grp_poll = QGroupBox("Abfrage & Verlauf")
+        grp_poll = QGroupBox("Abfrage && Verlauf")
         p_form = QFormLayout(grp_poll)
         self.spn_interval = QSpinBox()
         self.spn_interval.setRange(500, 5000)
@@ -200,7 +200,7 @@ class SettingsDialog(QDialog):
         p_form.addRow("Graph-Verlaufslänge:", self.spn_history)
         layout.addWidget(grp_poll)
 
-        grp_gpu = QGroupBox("GPU & Gamer-Metriken")
+        grp_gpu = QGroupBox("GPU-Metriken")
         g_form = QFormLayout(grp_gpu)
         self.cmb_gpu = QComboBox()
         if self._gpus:
@@ -219,9 +219,9 @@ class SettingsDialog(QDialog):
         g_form.addRow("VRAM-Warnschwelle:", self.spn_vram_warn)
         layout.addWidget(grp_gpu)
 
-        grp_cpu_clk = QGroupBox("CPU & Uhr-Optionen")
+        grp_cpu_clk = QGroupBox("CPU- && Uhr-Optionen")
         c_form = QFormLayout(grp_cpu_clk)
-        self.chk_cpu_max_core = QCheckBox("Peak-Kern-Auslastung anzeigen (nützlich für Gaming)")
+        self.chk_cpu_max_core = QCheckBox("Peak-Kern-Auslastung anzeigen (höchster Einzelkern)")
         self.chk_cpu_disk = QCheckBox("Disk I/O (Lesen/Schreiben MB/s) anzeigen")
         self.chk_clock_sec = QCheckBox("Sekunden-Fortschrittsbalken in der Uhr anzeigen")
         self.chk_clock_uptime = QCheckBox("System-Uptime in der Uhr anzeigen")
