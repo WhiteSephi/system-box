@@ -4,6 +4,12 @@ Alle relevanten Änderungen an diesem Projekt werden in dieser Datei dokumentier
 Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/),
 und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 
+## [0.5.0] - 2026-11-12
+### Added
+- Kombi-Graph-Unterstützung in `MiniLiveGraphWidget` (zweite Überlagerungs-Kurve im selben Graphen mit gemeinsamer dynamischer/prozentualer Y-Skala).
+- GPU-Widget: Leistungsaufnahme (`W / Limit`) farblich hervorgehoben und als zweite Kurve (% des Power-Limits) im Temperatur-Graphen dargestellt.
+- CPU & System-Widget: Disk Read und Write als zwei getrennte Kurven im gemeinsamen Disk-I/O-Kombi-Graphen.
+
 ## [0.4.0] - 2026-11-12
 ### Added
 - Eigene, optional zuschaltbare `PageFaults/sec`-Sektion mit Live-Graph im `CPU & System`-Widget (Windows `NtQuerySystemInformation` `PageReadIoCount` / Linux `/proc/vmstat` `pgmajfault` ohne Admin-Rechte).

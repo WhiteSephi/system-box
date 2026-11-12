@@ -64,12 +64,16 @@ class GpuWidget(BaseDesktopWidget):
         v2.setContentsMargins(0, 0, 0, 0)
         v2.setSpacing(2)
         r2 = QHBoxLayout()
+        r2.setSpacing(6)
         self.lbl_temp = QLabel("-- °C")
         self.lbl_fan_pwr = QLabel("")
         self.lbl_fan_pwr.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        self.lbl_power = QLabel("")
+        self.lbl_power.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         r2.addWidget(self.lbl_temp)
         r2.addStretch(1)
         r2.addWidget(self.lbl_fan_pwr)
+        r2.addWidget(self.lbl_power)
         self.graph_temp = MiniLiveGraphWidget(self.config.history_seconds, self.config.temp_color, self.config.grid_color, 100.0)
         v2.addLayout(r2)
         v2.addWidget(self.graph_temp)
@@ -115,11 +119,14 @@ class GpuWidget(BaseDesktopWidget):
             lbl.setFont(sub_font)
             lbl.setStyleSheet(f"color: {self.config.muted_color};")
 
+        self.lbl_power.setFont(val_font)
+        self.lbl_power.setStyleSheet(f"color: {self.config.secondary_color};")
+
         self.lbl_compact.setFont(self.make_font(9.5, bold=True))
         self.lbl_compact.setStyleSheet(f"color: {self.config.title_color};")
 
         self.graph_util.set_colors(self.config.primary_color, self.config.grid_color)
-        self.graph_temp.set_colors(self.config.temp_color, self.config.grid_color)
+        self.graph_temp.set_colors(self.config.temp_color, self.config.grid_color, self.config.secondary_color)
         self.graph_vram.set_colors(self.config.vram_color, self.config.grid_color)
 
         for g in (self.graph_util, self.graph_temp, self.graph_vram):
@@ -147,6 +154,7 @@ class GpuWidget(BaseDesktopWidget):
             self.lbl_clock.setText("")
             self.lbl_temp.setText("--")
             self.lbl_fan_pwr.setText("")
+            self.lbl_power.setText("")
             self.lbl_vram_used.setText("VRAM: --")
             self.lbl_vram_total.setText("")
             self.lbl_compact.setText("Keine GPU-Sensoren verfügbar")
@@ -168,24 +176,31 @@ class GpuWidget(BaseDesktopWidget):
 
         temp_txt = f"{gpu.temp_c:.0f} °C" if gpu.temp_c is not None else "Temp: --"
         self.lbl_temp.setText(temp_txt)
-        if gpu.temp_c is not None:
-            self.graph_temp.push_value(gpu.temp_c, 100.0)
 
-        details: list[str] = []
+        pwr_pct: float | None = None
+        if self.config.gpu_show_power_fan and gpu.power_watts is not None:
+            if gpu.power_limit_watts and gpu.power_limit_watts > 0:
+                pwr_pct = min(100.0, (gpu.power_watts / gpu.power_limit_watts) * 100.0)
+                self.lbl_power.setText(f"{gpu.power_watts:.0f}/{gpu.power_limit_watts:.0f} W")
+            else:
+                self.lbl_power.setText(f"{gpu.power_watts:.0f} W")
+            self.lbl_power.setVisible(True)
+        else:
+            self.lbl_power.setText("")
+            self.lbl_power.setVisible(False)
+
+        if gpu.temp_c is not None:
+            self.graph_temp.push_value(gpu.temp_c, 100.0, secondary_value=pwr_pct)
+
+        fan_txt = ""
         if self.config.gpu_show_power_fan:
             if gpu.fan_rpm is not None:
-                fan_str = f"{gpu.fan_rpm} RPM"
+                fan_txt = f"{gpu.fan_rpm} RPM"
                 if gpu.fan_percent is not None:
-                    fan_str += f" ({gpu.fan_percent}%)"
-                details.append(fan_str)
+                    fan_txt += f" ({gpu.fan_percent}%)"
             elif gpu.fan_percent is not None:
-                details.append(f"Lüfter {gpu.fan_percent}%")
-            if gpu.power_watts is not None:
-                pwr = f"{gpu.power_watts:.0f} W"
-                if gpu.power_limit_watts is not None:
-                    pwr = f"{gpu.power_watts:.0f}/{gpu.power_limit_watts:.0f} W"
-                details.append(pwr)
-        self.lbl_fan_pwr.setText(" • ".join(details))
+                fan_txt = f"Lüfter {gpu.fan_percent}%"
+        self.lbl_fan_pwr.setText(fan_txt)
 
         vram_pct = 0.0
         if gpu.vram_used_mb is not None and gpu.vram_total_mb:

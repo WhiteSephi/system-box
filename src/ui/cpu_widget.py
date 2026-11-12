@@ -137,9 +137,11 @@ class CpuSystemWidget(BaseDesktopWidget):
         for lbl in (self.lbl_cpu, self.lbl_ram, self.lbl_pf, self.lbl_disk_r):
             lbl.setFont(val_font)
             lbl.setStyleSheet(f"color: {self.config.title_color};")
-        for lbl in (self.lbl_cpu_clk, self.lbl_ram_pct, self.lbl_pf_max, self.lbl_disk_w):
+        for lbl in (self.lbl_cpu_clk, self.lbl_ram_pct, self.lbl_pf_max):
             lbl.setFont(sub_font)
             lbl.setStyleSheet(f"color: {self.config.muted_color};")
+        self.lbl_disk_w.setFont(sub_font)
+        self.lbl_disk_w.setStyleSheet(f"color: {self.config.secondary_color};")
 
         self.lbl_compact.setFont(self.make_font(9.5, bold=True))
         self.lbl_compact.setStyleSheet(f"color: {self.config.title_color};")
@@ -147,7 +149,7 @@ class CpuSystemWidget(BaseDesktopWidget):
         self.graph_cpu.set_colors(self.config.primary_color, self.config.grid_color)
         self.graph_ram.set_colors(self.config.secondary_color, self.config.grid_color)
         self.graph_pf.set_colors(self.config.vram_color, self.config.grid_color)
-        self.graph_disk.set_colors(self.config.vram_color, self.config.grid_color)
+        self.graph_disk.set_colors(self.config.vram_color, self.config.grid_color, self.config.secondary_color)
 
         for g in (self.graph_cpu, self.graph_ram, self.graph_pf, self.graph_disk):
             g.set_ui_scale(self.ui_scale)
@@ -196,7 +198,7 @@ class CpuSystemWidget(BaseDesktopWidget):
         if self.config.cpu_show_disk_io:
             self.lbl_disk_r.setText(f"Disk R: {cpu.disk_read_mb_s:.1f} MB/s")
             self.lbl_disk_w.setText(f"W: {cpu.disk_write_mb_s:.1f} MB/s")
-            self.graph_disk.push_value(cpu.disk_read_mb_s + cpu.disk_write_mb_s)
+            self.graph_disk.push_value(cpu.disk_read_mb_s, secondary_value=cpu.disk_write_mb_s)
 
         parts = [f"CPU {cpu.cpu_percent:.0f}%"]
         if cpu.cpu_freq_mhz:
