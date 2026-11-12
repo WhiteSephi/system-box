@@ -163,7 +163,7 @@ class CpuSystemWidget(BaseDesktopWidget):
 
         cpu_txt = f"CPU: {cpu.cpu_percent:.1f} %"
         if self.config.cpu_show_max_core:
-            cpu_txt += f" (Peak {cpu.cpu_max_core_percent:.0f}%)"
+            cpu_txt += f" (Max-Kern {cpu.cpu_max_core_percent:.0f}%)"
         self.lbl_cpu.setText(cpu_txt)
         self.lbl_cpu_clk.setText(f"{cpu.cpu_freq_mhz:.0f} MHz" if cpu.cpu_freq_mhz else "")
         self.graph_cpu.push_value(cpu.cpu_percent, 100.0)

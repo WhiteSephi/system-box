@@ -248,7 +248,7 @@ class SettingsDialog(QDialog):
 
         grp_cpu = QGroupBox("CPU, RAM && System-Metriken")
         c_form = QFormLayout(grp_cpu)
-        self.chk_cpu_max_core = QCheckBox("Peak-Kern-Auslastung anzeigen (höchster Einzelkern)")
+        self.chk_cpu_max_core = QCheckBox("Höchsten Einzelkern anzeigen (Max-Kern %)")
         self.chk_cpu_page_faults = QCheckBox("PageFaults/sec (Hard Page Faults) Graph anzeigen")
         self.chk_cpu_disk = QCheckBox("Disk I/O (Lesen/Schreiben MB/s) anzeigen")
         c_form.addRow("", self.chk_cpu_max_core)
