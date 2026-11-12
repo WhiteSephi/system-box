@@ -14,10 +14,12 @@ from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
     QFormLayout,
+    QFrame,
     QGroupBox,
     QHBoxLayout,
     QLabel,
     QPushButton,
+    QScrollArea,
     QSlider,
     QSpinBox,
     QTabWidget,
@@ -86,8 +88,8 @@ class SettingsDialog(QDialog):
 
         self.setWindowTitle("SystemBox Einstellungen")
         self.setWindowIcon(create_systembox_icon(self.config.primary_color))
-        self.setMinimumSize(620, 480)
-        self.resize(self.config.settings_width, self.config.settings_height)
+        self.setMinimumSize(640, 520)
+        self.resize(max(680, self.config.settings_width), max(620, self.config.settings_height))
         if self.config.settings_pos_x >= 0 and self.config.settings_pos_y >= 0:
             self.move(self.config.settings_pos_x, self.config.settings_pos_y)
 
@@ -125,9 +127,14 @@ class SettingsDialog(QDialog):
         root.addLayout(btn_row)
 
     def _build_general_tab(self) -> QWidget:
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+
         tab = QWidget()
         layout = QVBoxLayout(tab)
         layout.setSpacing(10)
+        scroll.setWidget(tab)
 
         # Autostart (aligned with TrafficBox)
         grp_auto = QGroupBox("Systemstart && Autostart")
@@ -211,7 +218,7 @@ class SettingsDialog(QDialog):
         layout.addWidget(grp_poll)
 
         layout.addStretch(1)
-        return tab
+        return scroll
 
     def _build_clock_tab(self) -> QWidget:
         tab = QWidget()

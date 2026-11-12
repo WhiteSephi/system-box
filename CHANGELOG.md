@@ -4,6 +4,10 @@ Alle relevanten Änderungen an diesem Projekt werden in dieser Datei dokumentier
 Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/),
 und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 
+## [0.7.1] - 2026-11-12
+### Fixed
+- Tab `Allgemein` in `SettingsDialog` mit `QScrollArea` und größerer Standardhöhe versehen, damit Gruppen und Checkboxen bei vielen Optionen nicht vertikal zusammengeschoben werden.
+
 ## [0.7.0] - 2026-11-12
 ### Added
 - Plattformübergreifende Autostart-Integration (`src/autostart.py`) für Windows (Registry `HKCU\...\Run`) und Linux/KDE (`~/.config/autostart/systembox.desktop`) analog zu TrafficBox.
