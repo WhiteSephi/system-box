@@ -4,6 +4,11 @@ Alle relevanten Änderungen an diesem Projekt werden in dieser Datei dokumentier
 Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/),
 und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 
+## [0.7.0] - 2026-11-12
+### Added
+- Plattformübergreifende Autostart-Integration (`src/autostart.py`) für Windows (Registry `HKCU\...\Run`) und Linux/KDE (`~/.config/autostart/systembox.desktop`) analog zu TrafficBox.
+- Sektion „Systemstart & Autostart“ im Tab `Allgemein` inkl. konfigurierbarer Startverzögerung beim Booten (`0–60 Sek.`, `--autostart`).
+
 ## [0.6.0] - 2026-11-12
 ### Added
 - Magnetisches Einrasten (Screen & Widget Snapping) beim Verschieben: Widgets docken automatisch an Bildschirmrändern sowie bündig (oder mit sauberem Abstand) an anderen SystemBox-Widgets an (`snap_to_edges`, abschaltbar im Tab `Allgemein`).

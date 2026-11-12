@@ -93,6 +93,7 @@ class AppConfig:
     locked_pos: bool = False
     snap_to_edges: bool = True
     autostart: bool = False
+    start_delay_sec: int = 0  # 0..60 s (used with --autostart)
 
     # Settings Dialog Geometry
     settings_pos_x: int = -1
@@ -181,6 +182,7 @@ class AppConfig:
         self.history_seconds = max(15, min(300, int(self.history_seconds)))
         self.ui_scale_percent = max(70, min(300, int(self.ui_scale_percent)))
         self.opacity = max(20, min(100, int(self.opacity)))
+        self.start_delay_sec = max(0, min(60, int(self.start_delay_sec)))
         self.selected_gpu_index = max(0, int(self.selected_gpu_index))
         self.gpu_vram_warn_percent = max(50, min(99, int(self.gpu_vram_warn_percent)))
 

@@ -26,6 +26,11 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         help="Optional working directory (used by autostart entry).",
     )
     parser.add_argument(
+        "--autostart",
+        action="store_true",
+        help="Indicates launch via OS autostart (applies configured start_delay_sec).",
+    )
+    parser.add_argument(
         "--self-test",
         action="store_true",
         help="Run a short verification of UI, sensors and event loop, then exit.",
@@ -51,6 +56,11 @@ def main(argv: list[str] | None = None) -> int:
     app.setQuitOnLastWindowClosed(False)
 
     config = AppConfig.load()
+    if args.autostart and config.start_delay_sec > 0 and not args.self_test:
+        import time
+
+        time.sleep(config.start_delay_sec)
+
     controller = SystemBoxApp(app, config)
 
     def _handle_terminate_signal(_signum: int, _frame: object) -> None:

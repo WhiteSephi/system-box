@@ -26,6 +26,7 @@ from PySide6.QtWidgets import (
 )
 
 from src import __version__
+from src.autostart import is_autostart_enabled, set_autostart
 from src.config import AppConfig
 from src.sensors.models import GpuInfo
 from src.themes import THEMES
@@ -127,6 +128,18 @@ class SettingsDialog(QDialog):
         tab = QWidget()
         layout = QVBoxLayout(tab)
         layout.setSpacing(10)
+
+        # Autostart (aligned with TrafficBox)
+        grp_auto = QGroupBox("Systemstart && Autostart")
+        a_form = QFormLayout(grp_auto)
+        self.chk_autostart = QCheckBox("Autostart mit dem Betriebssystem aktivieren")
+        a_form.addRow("", self.chk_autostart)
+
+        self.spn_start_delay = QSpinBox()
+        self.spn_start_delay.setRange(0, 60)
+        self.spn_start_delay.setSuffix(" Sek.")
+        a_form.addRow("Startverzögerung beim Booten:", self.spn_start_delay)
+        layout.addWidget(grp_auto)
 
         # Global appearance
         grp_global = QGroupBox("Globale Darstellung && Verhalten")
@@ -410,6 +423,8 @@ class SettingsDialog(QDialog):
         self.btn_col_muted.hex_color = theme["muted"]
 
     def _load_from_config(self) -> None:
+        self.chk_autostart.setChecked(is_autostart_enabled() or self.config.autostart)
+        self.spn_start_delay.setValue(self.config.start_delay_sec)
         self.sld_scale.setValue(self.config.ui_scale_percent)
         self.sld_opacity.setValue(self.config.opacity)
         self.chk_always_on_top.setChecked(self.config.always_on_top)
@@ -442,6 +457,9 @@ class SettingsDialog(QDialog):
             self.cmb_theme.setCurrentIndex(t_idx)
 
     def _save_to_config(self) -> None:
+        self.config.autostart = self.chk_autostart.isChecked()
+        self.config.start_delay_sec = self.spn_start_delay.value()
+        set_autostart(self.config.autostart)
         self.config.ui_scale_percent = self.sld_scale.value()
         self.config.opacity = self.sld_opacity.value()
         self.config.always_on_top = self.chk_always_on_top.isChecked()
