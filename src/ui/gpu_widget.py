@@ -105,9 +105,11 @@ class GpuWidget(BaseDesktopWidget):
 
         val_font = self.make_font(9.0, bold=True)
         sub_font = self.make_font(8.5, bold=False)
-        for lbl in (self.lbl_util, self.lbl_temp, self.lbl_vram_used):
+        for lbl in (self.lbl_util, self.lbl_vram_used):
             lbl.setFont(val_font)
             lbl.setStyleSheet(f"color: {self.config.title_color};")
+        self.lbl_temp.setFont(val_font)
+        self.lbl_temp.setStyleSheet(f"color: {self.config.temp_color};")
         for lbl in (self.lbl_clock, self.lbl_fan_pwr, self.lbl_vram_total):
             lbl.setFont(sub_font)
             lbl.setStyleSheet(f"color: {self.config.muted_color};")
