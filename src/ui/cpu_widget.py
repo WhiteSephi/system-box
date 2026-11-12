@@ -1,0 +1,176 @@
+"""CPU, RAM & Disk I/O Live Telemetry Widget."""
+
+from __future__ import annotations
+
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QVBoxLayout, QWidget
+
+from src.config import AppConfig
+from src.sensors.models import SystemSnapshot
+from src.ui.base_widget import BaseDesktopWidget
+from src.ui.graph_canvas import MiniLiveGraphWidget
+
+
+class CpuSystemWidget(BaseDesktopWidget):
+    """Frameless CPU, RAM & Disk I/O monitor with stacked live graphs and compact mode."""
+
+    def __init__(self, config: AppConfig) -> None:
+        super().__init__("cpu", "CPU & System", config)
+        self._build_ui()
+        self.on_apply_config()
+
+    def _build_ui(self) -> None:
+        self._layout = QVBoxLayout(self)
+        self._layout.setContentsMargins(10, 8, 10, 8)
+        self._layout.setSpacing(4)
+
+        # Header
+        hdr = QHBoxLayout()
+        self.lbl_title = QLabel("CPU & System")
+        self.lbl_temp_pill = QLabel("")
+        self.lbl_temp_pill.setVisible(False)
+        hdr.addWidget(self.lbl_title, 1)
+        hdr.addWidget(self.lbl_temp_pill)
+        self._layout.addLayout(hdr)
+
+        # Compact line
+        self.lbl_compact = QLabel("CPU: --")
+        self.lbl_compact.setWordWrap(True)
+        self.lbl_compact.setVisible(False)
+        self._layout.addWidget(self.lbl_compact)
+
+        # Section 1: CPU
+        self._sec_cpu = QWidget()
+        v1 = QVBoxLayout(self._sec_cpu)
+        v1.setContentsMargins(0, 0, 0, 0)
+        v1.setSpacing(2)
+        r1 = QHBoxLayout()
+        self.lbl_cpu = QLabel("CPU: -- %")
+        self.lbl_cpu_clk = QLabel("-- MHz")
+        self.lbl_cpu_clk.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        r1.addWidget(self.lbl_cpu)
+        r1.addStretch(1)
+        r1.addWidget(self.lbl_cpu_clk)
+        self.graph_cpu = MiniLiveGraphWidget(self.config.history_seconds, self.config.primary_color, self.config.grid_color, 100.0)
+        v1.addLayout(r1)
+        v1.addWidget(self.graph_cpu)
+        self._layout.addWidget(self._sec_cpu, 1)
+
+        # Section 2: RAM
+        self._sec_ram = QWidget()
+        v2 = QVBoxLayout(self._sec_ram)
+        v2.setContentsMargins(0, 0, 0, 0)
+        v2.setSpacing(2)
+        r2 = QHBoxLayout()
+        self.lbl_ram = QLabel("RAM: -- GB")
+        self.lbl_ram_pct = QLabel("-- %")
+        self.lbl_ram_pct.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        r2.addWidget(self.lbl_ram)
+        r2.addStretch(1)
+        r2.addWidget(self.lbl_ram_pct)
+        self.graph_ram = MiniLiveGraphWidget(self.config.history_seconds, self.config.secondary_color, self.config.grid_color, 100.0)
+        v2.addLayout(r2)
+        v2.addWidget(self.graph_ram)
+        self._layout.addWidget(self._sec_ram, 1)
+
+        # Section 3: Disk I/O
+        self._sec_disk = QWidget()
+        v3 = QVBoxLayout(self._sec_disk)
+        v3.setContentsMargins(0, 0, 0, 0)
+        v3.setSpacing(2)
+        r3 = QHBoxLayout()
+        self.lbl_disk_r = QLabel("Disk R: 0.0 MB/s")
+        self.lbl_disk_w = QLabel("W: 0.0 MB/s")
+        self.lbl_disk_w.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        r3.addWidget(self.lbl_disk_r)
+        r3.addStretch(1)
+        r3.addWidget(self.lbl_disk_w)
+        self.graph_disk = MiniLiveGraphWidget(
+            self.config.history_seconds,
+            self.config.vram_color,
+            self.config.grid_color,
+            100.0,
+            dynamic_scale=True,
+        )
+        v3.addLayout(r3)
+        v3.addWidget(self.graph_disk)
+        self._layout.addWidget(self._sec_disk, 1)
+
+    def on_apply_config(self) -> None:
+        compact = self.config.get_widget("cpu").compact_mode
+        m = self.sc(9)
+        self._layout.setContentsMargins(m, self.sc(7), m, self.sc(7))
+        self._layout.setSpacing(self.sc(4))
+
+        self.lbl_title.setFont(self.make_font(10.0, bold=True))
+        self.lbl_title.setStyleSheet(f"color: {self.config.title_color};")
+
+        self.lbl_temp_pill.setFont(self.make_font(8.5, bold=True))
+        self.lbl_temp_pill.setStyleSheet(
+            f"color: {self.config.temp_color}; border: 1px solid {self.config.temp_color}; border-radius: {self.sc(4)}px; padding: 1px {self.sc(5)}px;"
+        )
+
+        val_font = self.make_font(9.0, bold=True)
+        sub_font = self.make_font(8.5, bold=False)
+        for lbl in (self.lbl_cpu, self.lbl_ram, self.lbl_disk_r):
+            lbl.setFont(val_font)
+            lbl.setStyleSheet(f"color: {self.config.title_color};")
+        for lbl in (self.lbl_cpu_clk, self.lbl_ram_pct, self.lbl_disk_w):
+            lbl.setFont(sub_font)
+            lbl.setStyleSheet(f"color: {self.config.muted_color};")
+
+        self.lbl_compact.setFont(self.make_font(9.5, bold=True))
+        self.lbl_compact.setStyleSheet(f"color: {self.config.title_color};")
+
+        self.graph_cpu.set_colors(self.config.primary_color, self.config.grid_color)
+        self.graph_ram.set_colors(self.config.secondary_color, self.config.grid_color)
+        self.graph_disk.set_colors(self.config.vram_color, self.config.grid_color)
+
+        for g in (self.graph_cpu, self.graph_ram, self.graph_disk):
+            g.set_ui_scale(self.ui_scale)
+            g.set_history_length(self.config.history_seconds)
+
+        self.lbl_compact.setVisible(compact)
+        self._sec_cpu.setVisible(not compact)
+        self._sec_ram.setVisible(not compact)
+        self._sec_disk.setVisible((not compact) and self.config.cpu_show_disk_io)
+
+        if compact:
+            self.setMinimumSize(self.sc(180), self.sc(62))
+        else:
+            min_h = self.sc(175) if self.config.cpu_show_disk_io else self.sc(130)
+            self.setMinimumSize(self.sc(220), min_h)
+
+    def update_snapshot(self, snapshot: SystemSnapshot) -> None:
+        """Render the latest CPU, RAM and Disk I/O telemetry."""
+        cpu = snapshot.cpu
+
+        if cpu.cpu_temp_c is not None:
+            self.lbl_temp_pill.setText(f"{cpu.cpu_temp_c:.0f} °C")
+            self.lbl_temp_pill.setVisible(True)
+        else:
+            self.lbl_temp_pill.setVisible(False)
+
+        cpu_txt = f"CPU: {cpu.cpu_percent:.1f} %"
+        if self.config.cpu_show_max_core:
+            cpu_txt += f" (Peak {cpu.cpu_max_core_percent:.0f}%)"
+        self.lbl_cpu.setText(cpu_txt)
+        self.lbl_cpu_clk.setText(f"{cpu.cpu_freq_mhz:.0f} MHz" if cpu.cpu_freq_mhz else "")
+        self.graph_cpu.push_value(cpu.cpu_percent, 100.0)
+
+        self.lbl_ram.setText(f"RAM: {cpu.ram_used_gb:.1f} / {cpu.ram_total_gb:.1f} GB")
+        self.lbl_ram_pct.setText(f"{cpu.ram_percent:.1f} %")
+        self.graph_ram.push_value(cpu.ram_percent, 100.0)
+
+        if self.config.cpu_show_disk_io:
+            self.lbl_disk_r.setText(f"Disk R: {cpu.disk_read_mb_s:.1f} MB/s")
+            self.lbl_disk_w.setText(f"W: {cpu.disk_write_mb_s:.1f} MB/s")
+            self.graph_disk.push_value(cpu.disk_read_mb_s + cpu.disk_write_mb_s)
+
+        parts = [f"CPU {cpu.cpu_percent:.0f}%"]
+        if cpu.cpu_freq_mhz:
+            parts.append(f"{cpu.cpu_freq_mhz / 1000.0:.2f} GHz")
+        if cpu.cpu_temp_c is not None:
+            parts.append(f"{cpu.cpu_temp_c:.0f}°C")
+        parts.append(f"RAM {cpu.ram_percent:.0f}%")
+        self.lbl_compact.setText(" • ".join(parts))
