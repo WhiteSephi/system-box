@@ -1,13 +1,14 @@
-# [Projektname]
+# SystemBox
 
-> Kurze Beschreibung, was dieses Projekt macht und welchen Zweck es erfüllt.
+> Schlankes, plattformübergreifendes Live-Desktop-Widget-System (Windows 11 & Linux / KDE Plasma) zur Echtzeit-Überwachung von Uhrzeit/Datum, GPU- und CPU/System-Metriken – optisch und architektonisch angelehnt an [TrafficBox](https://github.com/WhiteSephi/traffic-box).
 
 ---
 
 ## 🛠️ Tech-Stack & Voraussetzungen
 
-- **Sprache / Runtime:** [z. B. Python 3.12 / Node.js 22 / Go]
-- **System-Abhängigkeiten:** [z. B. Docker, ffmpeg, etc. – falls vorhanden]
+- **Sprache / Runtime:** Python 3.11+
+- **GUI-Framework:** PySide6 (Qt6) mit stufenloser HiDPI-/Vektor-Skalierung
+- **Sensorik:** `psutil` (Basis-Metriken), `nvidia-ml-py` (`pynvml` für NVIDIA GPUs), native `sysfs`/`hwmon`-Unterstützung unter Linux sowie DXGI/Performance-Counter-Fallbacks unter Windows (ohne Admin-Rechte)
 
 ---
 
@@ -15,13 +16,19 @@
 
 1. **Repository klonen:**
    ```bash
-   git clone https://github.com/WhiteSephi/PROJEKTNAME.git
-   cd PROJEKTNAME
+   git clone https://github.com/WhiteSephi/system-box.git
+   cd system-box
    ```
 
 2. **Umgebung & Abhängigkeiten einrichten:**
    ```bash
-   # Platzhalter für Installationsbefehl (wird vom Agenten ausgefüllt)
+   python -m venv .venv
+   # Windows:
+   .venv\Scripts\activate
+   # Linux:
+   source .venv/bin/activate
+
+   pip install -r requirements.txt
    ```
 
 3. **Konfiguration (optional):**
@@ -34,7 +41,12 @@
 ## 💻 Verwendung / Starten
 
 ```bash
-# Platzhalter für den Startbefehl (wird vom Agenten ausgefüllt)
+# Direkt über Python starten:
+python -m src.main
+
+# Oder über die Startskripte:
+# Windows: start_windows.vbs
+# Linux:   ./start_linux.sh
 ```
 
 ---
@@ -43,9 +55,16 @@
 
 ```text
 .
-├── src/             # Quellcode
-├── .env.example     # Vorlage für Umgebungsvariablen
-└── CHANGELOG.md     # Chronologische Änderungshistorie
+├── src/
+│   ├── config.py        # Zentrale Konfiguration & Theme-Presets
+│   ├── sensors/         # Plattformübergreifendes Sensor-Provider-Pattern
+│   ├── ui/              # Basis-Widget, Clock/GPU/CPU-Widgets, Tray & Settings
+│   └── main.py          # Einstiegspunkt & Widget-Manager
+├── tests/               # Unit-Tests (Sensoren, Config, UI-Komponenten)
+├── start_linux.sh       # Linux-Startskript (XCB/Wayland)
+├── start_windows.vbs    # Fensterloses Windows-Startskript
+├── SystemBox.spec       # PyInstaller Build-Konfiguration (.exe)
+└── CHANGELOG.md         # Chronologische Änderungshistorie
 ```
 
 ---
@@ -54,4 +73,3 @@
 
 > Dieses Projekt wurde mit KI-Unterstützung (Google Antigravity) entwickelt. Feedback und Verbesserungsvorschläge sind willkommen!  
 > *Developed with AI assistance. Feedback and contributions are welcome.*
-
