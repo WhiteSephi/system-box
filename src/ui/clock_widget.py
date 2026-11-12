@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from PySide6.QtCore import QPointF, QRectF, Qt, QTimer
-from PySide6.QtGui import QColor, QFont, QPainter, QPaintEvent, QPen
+from PySide6.QtGui import QColor, QFont, QFontMetricsF, QPainter, QPaintEvent, QPen
 from PySide6.QtWidgets import QWidget
 
 from src.config import AppConfig
@@ -69,13 +69,20 @@ class ClockWidget(BaseDesktopWidget):
 
         time_str = now.strftime("%H:%M") if self.config.clock_24h else now.strftime("%I:%M %p")
 
-        # 1. Big Time
+        # 1. Big Time (auto-fitted to available width so 12h AM/PM never clips)
         time_h = h * 0.40
+        avail_w = max(40.0, w - 2 * pad)
+        pt = max(14.0, min(time_h * 0.72, w * 0.24))
         time_font = QFont("Segoe UI", 10, QFont.Weight.Bold)
-        time_font.setPointSizeF(max(14.0, min(time_h * 0.72, w * 0.24)))
+        time_font.setPointSizeF(pt)
+        fm = QFontMetricsF(time_font)
+        text_w = fm.horizontalAdvance(time_str)
+        if text_w > avail_w:
+            pt = max(10.0, pt * (avail_w / text_w) * 0.96)
+            time_font.setPointSizeF(pt)
         painter.setFont(time_font)
         painter.setPen(title_col)
-        painter.drawText(QRectF(pad, pad * 0.4, w - 2 * pad, time_h), Qt.AlignmentFlag.AlignCenter, time_str)
+        painter.drawText(QRectF(pad, pad * 0.4, avail_w, time_h), Qt.AlignmentFlag.AlignCenter, time_str)
 
         # 2. Seconds progress bar
         bar_y = pad * 0.4 + time_h + self.sc(2)
