@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+import platform
+import sys
 
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QColor
+from PySide6.QtCore import Qt, QUrl, qVersion
+from PySide6.QtGui import QColor, QDesktopServices
 from PySide6.QtWidgets import (
     QCheckBox,
     QColorDialog,
@@ -104,7 +106,7 @@ class SettingsDialog(QDialog):
         self.tabs.addTab(self._build_gpu_tab(), "GPU-Monitor")
         self.tabs.addTab(self._build_cpu_tab(), "CPU && System")
         self.tabs.addTab(self._build_theme_tab(), "Design && Themes")
-        self.tabs.addTab(self._build_about_tab(), "Über SystemBox")
+        self.tabs.addTab(self._build_about_tab(), "Über")
 
         # Action Buttons
         btn_row = QHBoxLayout()
@@ -249,7 +251,7 @@ class SettingsDialog(QDialog):
         grp_cpu = QGroupBox("CPU, RAM && System-Metriken")
         c_form = QFormLayout(grp_cpu)
         self.chk_cpu_max_core = QCheckBox("Peak-Kern-Auslastung anzeigen (höchster Einzelkern)")
-        self.chk_cpu_page_faults = QCheckBox("PageFaults / Swap neben RAM anzeigen")
+        self.chk_cpu_page_faults = QCheckBox("PageFaults/sec (Hard Page Faults) Graph anzeigen")
         self.chk_cpu_disk = QCheckBox("Disk I/O (Lesen/Schreiben MB/s) anzeigen")
         c_form.addRow("", self.chk_cpu_max_core)
         c_form.addRow("", self.chk_cpu_page_faults)
@@ -303,27 +305,92 @@ class SettingsDialog(QDialog):
     def _build_about_tab(self) -> QWidget:
         tab = QWidget()
         layout = QVBoxLayout(tab)
-        layout.setSpacing(8)
+        layout.setSpacing(10)
 
-        lbl_head = QLabel(f"<b>SystemBox v{__version__}</b>")
+        repo_url = "https://github.com/WhiteSephi/system-box"
+        releases_url = f"{repo_url}/releases"
+        issues_url = f"{repo_url}/issues"
+
+        # Group 1: Über SystemBox (analog TrafficBox)
+        grp_about = QGroupBox("Über SystemBox")
+        about_layout = QVBoxLayout(grp_about)
+        about_layout.setSpacing(10)
+
+        top_row = QHBoxLayout()
+        top_row.setSpacing(12)
+        lbl_icon = QLabel()
+        lbl_icon.setPixmap(create_systembox_icon(self.config.primary_color).pixmap(44, 44))
+        lbl_icon.setFixedSize(48, 48)
+        top_row.addWidget(lbl_icon, 0, Qt.AlignmentFlag.AlignTop)
+
+        info_col = QVBoxLayout()
+        info_col.setSpacing(3)
+        title_row = QHBoxLayout()
+        title_row.setSpacing(8)
+        lbl_name = QLabel("<b style='font-size: 14pt;'>SystemBox</b>")
+        lbl_ver = QLabel(f"v{__version__}")
+        lbl_ver.setStyleSheet(
+            f"color: {self.config.primary_color}; border: 1px solid {self.config.primary_color}; "
+            "border-radius: 5px; padding: 1px 7px; font-weight: bold;"
+        )
+        title_row.addWidget(lbl_name)
+        title_row.addWidget(lbl_ver)
+        title_row.addStretch(1)
+        info_col.addLayout(title_row)
+
         lbl_desc = QLabel(
-            "Schlanke, plattformübergreifende Live-Desktop-Widgets für Uhrzeit/Datum, "
-            "GPU- und CPU/System-Metriken (Windows 11 & Linux / KDE Plasma)."
+            "Schlankes Live-Desktop-Widget-System für Uhrzeit/Datum, GPU- und CPU/System-Metriken."
         )
         lbl_desc.setWordWrap(True)
+        info_col.addWidget(lbl_desc)
+        top_row.addLayout(info_col, 1)
+        about_layout.addLayout(top_row)
 
-        gpu_lines = [f"• [{g.index}] {g.name} (Backend: {g.backend})" for g in self._gpus] or ["• Keine dedizierte GPU erkannt"]
-        lbl_hw = QLabel("<b>Erkannte Grafik-Hardware:</b><br>" + "<br>".join(gpu_lines))
-        lbl_hw.setWordWrap(True)
+        btn_row = QHBoxLayout()
+        btn_row.setSpacing(8)
+        for text, url in (
+            ("🌐 GitHub", repo_url),
+            ("🚀 Releases", releases_url),
+            ("🐛 Fehler melden", issues_url),
+        ):
+            btn = QPushButton(text)
+            btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn.clicked.connect(lambda _=False, u=url: QDesktopServices.openUrl(QUrl(u)))
+            btn_row.addWidget(btn)
 
-        lbl_cfg = QLabel(f"<b>Konfigurationsdatei:</b><br>{AppConfig.config_path()}")
-        lbl_cfg.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-        lbl_cfg.setWordWrap(True)
+        btn_cfg = QPushButton("📁 Konfig-Ordner")
+        btn_cfg.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_cfg.clicked.connect(
+            lambda: QDesktopServices.openUrl(QUrl.fromLocalFile(str(AppConfig.config_path().parent)))
+        )
+        btn_row.addWidget(btn_cfg)
+        about_layout.addLayout(btn_row)
+        layout.addWidget(grp_about)
 
-        layout.addWidget(lbl_head)
-        layout.addWidget(lbl_desc)
-        layout.addWidget(lbl_hw)
-        layout.addWidget(lbl_cfg)
+        # Group 2: System-Diagnose & Rechtliches
+        grp_diag = QGroupBox("System-Diagnose && Rechtliches")
+        d_form = QFormLayout(grp_diag)
+        d_form.setVerticalSpacing(6)
+
+        mode_str = "Binary" if getattr(sys, "frozen", False) else "Quellcode"
+        os_str = f"{platform.system()} {platform.release()} ({platform.machine()})"
+        runtime_str = f"{os_str} • Python {platform.python_version()} • Qt {qVersion()} • {mode_str}"
+        d_form.addRow("Laufzeit:", QLabel(runtime_str))
+
+        cfg_dir = AppConfig.config_path().parent
+        loc_str = f"Portabel ({cfg_dir})" if cfg_dir.name == "local" else f"Systemprofil ({cfg_dir})"
+        lbl_loc = QLabel(loc_str)
+        lbl_loc.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        d_form.addRow("Speicherort:", lbl_loc)
+
+        gpu_str = ", ".join(f"[{g.index}] {g.name} ({g.backend})" for g in self._gpus) or "Keine dedizierte GPU erkannt"
+        lbl_gpu = QLabel(gpu_str)
+        lbl_gpu.setWordWrap(True)
+        d_form.addRow("Hardware:", lbl_gpu)
+
+        d_form.addRow("Hinweise:", QLabel("Open Source (MIT) • 100 % lokal ohne Telemetrie"))
+        layout.addWidget(grp_diag)
+
         layout.addStretch(1)
         return tab
 

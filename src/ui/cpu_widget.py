@@ -73,7 +73,29 @@ class CpuSystemWidget(BaseDesktopWidget):
         v2.addWidget(self.graph_ram)
         self._layout.addWidget(self._sec_ram, 1)
 
-        # Section 3: Disk I/O
+        # Section 3: Hard Page Faults / sec (optional)
+        self._sec_pf = QWidget()
+        v_pf = QVBoxLayout(self._sec_pf)
+        v_pf.setContentsMargins(0, 0, 0, 0)
+        v_pf.setSpacing(2)
+        r_pf = QHBoxLayout()
+        self.lbl_pf = QLabel("PageFaults/sec: 0")
+        self.lbl_pf_max = QLabel("Max: 128")
+        self.lbl_pf_max.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        r_pf.addWidget(self.lbl_pf)
+        r_pf.addStretch(1)
+        r_pf.addWidget(self.lbl_pf_max)
+        self.graph_pf = MiniLiveGraphWidget(
+            self.config.history_seconds,
+            self.config.vram_color,
+            self.config.grid_color,
+            128.0,
+        )
+        v_pf.addLayout(r_pf)
+        v_pf.addWidget(self.graph_pf)
+        self._layout.addWidget(self._sec_pf, 1)
+
+        # Section 4: Disk I/O
         self._sec_disk = QWidget()
         v3 = QVBoxLayout(self._sec_disk)
         v3.setContentsMargins(0, 0, 0, 0)
@@ -112,10 +134,10 @@ class CpuSystemWidget(BaseDesktopWidget):
 
         val_font = self.make_font(9.0, bold=True)
         sub_font = self.make_font(8.5, bold=False)
-        for lbl in (self.lbl_cpu, self.lbl_ram, self.lbl_disk_r):
+        for lbl in (self.lbl_cpu, self.lbl_ram, self.lbl_pf, self.lbl_disk_r):
             lbl.setFont(val_font)
             lbl.setStyleSheet(f"color: {self.config.title_color};")
-        for lbl in (self.lbl_cpu_clk, self.lbl_ram_pct, self.lbl_disk_w):
+        for lbl in (self.lbl_cpu_clk, self.lbl_ram_pct, self.lbl_pf_max, self.lbl_disk_w):
             lbl.setFont(sub_font)
             lbl.setStyleSheet(f"color: {self.config.muted_color};")
 
@@ -124,22 +146,24 @@ class CpuSystemWidget(BaseDesktopWidget):
 
         self.graph_cpu.set_colors(self.config.primary_color, self.config.grid_color)
         self.graph_ram.set_colors(self.config.secondary_color, self.config.grid_color)
+        self.graph_pf.set_colors(self.config.vram_color, self.config.grid_color)
         self.graph_disk.set_colors(self.config.vram_color, self.config.grid_color)
 
-        for g in (self.graph_cpu, self.graph_ram, self.graph_disk):
+        for g in (self.graph_cpu, self.graph_ram, self.graph_pf, self.graph_disk):
             g.set_ui_scale(self.ui_scale)
             g.set_history_length(self.config.history_seconds)
 
         self.lbl_compact.setVisible(compact)
         self._sec_cpu.setVisible(not compact)
         self._sec_ram.setVisible(not compact)
+        self._sec_pf.setVisible((not compact) and self.config.cpu_show_page_faults)
         self._sec_disk.setVisible((not compact) and self.config.cpu_show_disk_io)
 
         if compact:
             self.setMinimumSize(self.sc(180), self.sc(62))
         else:
-            min_h = self.sc(175) if self.config.cpu_show_disk_io else self.sc(130)
-            self.setMinimumSize(self.sc(220), min_h)
+            active_sections = 2 + int(self.config.cpu_show_page_faults) + int(self.config.cpu_show_disk_io)
+            self.setMinimumSize(self.sc(220), self.sc(44 + active_sections * 46))
 
     def update_snapshot(self, snapshot: SystemSnapshot) -> None:
         """Render the latest CPU, RAM and Disk I/O telemetry."""
@@ -159,14 +183,15 @@ class CpuSystemWidget(BaseDesktopWidget):
         self.graph_cpu.push_value(cpu.cpu_percent, 100.0)
 
         self.lbl_ram.setText(f"RAM: {cpu.ram_used_gb:.1f} / {cpu.ram_total_gb:.1f} GB")
-        ram_right = f"{cpu.ram_percent:.1f} %"
-        if self.config.cpu_show_page_faults:
-            if cpu.page_faults_per_sec is not None:
-                ram_right += f" • PF: {cpu.page_faults_per_sec:.0f}/s"
-            elif cpu.swap_total_gb > 0:
-                ram_right += f" • Swap: {cpu.swap_used_gb:.1f} GB"
-        self.lbl_ram_pct.setText(ram_right)
+        self.lbl_ram_pct.setText(f"{cpu.ram_percent:.1f} %")
         self.graph_ram.push_value(cpu.ram_percent, 100.0)
+
+        if self.config.cpu_show_page_faults:
+            pf_val = cpu.page_faults_per_sec if cpu.page_faults_per_sec is not None else 0.0
+            pf_ceil = max(128.0, pf_val * 1.2)
+            self.lbl_pf.setText(f"PageFaults/sec: {pf_val:.0f}")
+            self.lbl_pf_max.setText(f"Max: {pf_ceil:.0f}")
+            self.graph_pf.push_value(pf_val, pf_ceil)
 
         if self.config.cpu_show_disk_io:
             self.lbl_disk_r.setText(f"Disk R: {cpu.disk_read_mb_s:.1f} MB/s")

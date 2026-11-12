@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import ctypes
 from pathlib import Path
+import struct
 import sys
 import time
 
@@ -18,7 +20,7 @@ class PsutilSystemProvider(SystemProvider):
     def __init__(self) -> None:
         self._last_disk_io = self._safe_disk_io()
         self._last_disk_ts = time.monotonic()
-        self._last_pgfault: int | None = self._read_linux_pgfault()
+        self._last_pgfault: int | None = self._read_hard_page_faults()
         self._last_pgfault_ts = self._last_disk_ts
         # Prime psutil cpu_percent so the first real poll returns a meaningful delta
         try:
@@ -27,15 +29,25 @@ class PsutilSystemProvider(SystemProvider):
             pass
 
     @staticmethod
-    def _read_linux_pgfault() -> int | None:
-        if not sys.platform.startswith("linux"):
-            return None
-        try:
-            for line in Path("/proc/vmstat").read_text(encoding="utf-8").splitlines():
-                if line.startswith("pgfault "):
-                    return int(line.split()[1])
-        except (OSError, ValueError, IndexError):
-            pass
+    def _read_hard_page_faults() -> int | None:
+        """Read cumulative hard page faults (Linux pgmajfault / Windows PageReadIoCount)."""
+        if sys.platform.startswith("linux"):
+            try:
+                for line in Path("/proc/vmstat").read_text(encoding="utf-8").splitlines():
+                    if line.startswith("pgmajfault "):
+                        return int(line.split()[1])
+            except (OSError, ValueError, IndexError):
+                return None
+        elif sys.platform == "win32":
+            try:
+                ntdll = ctypes.WinDLL("ntdll.dll")
+                buf = ctypes.create_string_buffer(512)
+                ret_len = ctypes.c_ulong()
+                # SystemPerformanceInformation = 2; PageReadIoCount is uint32 at offset 84
+                if ntdll.NtQuerySystemInformation(2, buf, 512, ctypes.byref(ret_len)) == 0 and ret_len.value >= 88:
+                    return int(struct.unpack_from("<I", buf.raw, 84)[0])
+            except Exception:
+                return None
         return None
 
     @staticmethod
@@ -123,10 +135,12 @@ class PsutilSystemProvider(SystemProvider):
 
         now = time.monotonic()
         page_faults_per_sec: float | None = None
-        cur_pgfault = self._read_linux_pgfault()
+        cur_pgfault = self._read_hard_page_faults()
         if cur_pgfault is not None and self._last_pgfault is not None:
             dt_pf = max(0.05, now - self._last_pgfault_ts)
-            page_faults_per_sec = max(0.0, (cur_pgfault - self._last_pgfault) / dt_pf)
+            delta = cur_pgfault - self._last_pgfault
+            if delta >= 0:
+                page_faults_per_sec = delta / dt_pf
         self._last_pgfault = cur_pgfault
         self._last_pgfault_ts = now
 
