@@ -4,6 +4,10 @@ Alle relevanten Änderungen an diesem Projekt werden in dieser Datei dokumentier
 Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/),
 und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 
+## [0.7.4] - 2026-11-13
+### Fixed
+- **PageFaults/sec-Skalierung (`src/ui/graph_canvas.py`, `src/ui/cpu_widget.py`):** Dynamische Y-Achsen-Skalierung (`dynamic_scale=True`, `min_ceiling=128.0`) über den gesamten sichtbaren Verlauf aktiviert. Zuvor wurde das Maximum nach einem Spike sofort wieder auf `128` zurückgesetzt, wodurch vorherige Spitzenwerte im Graphen oben abgeschnitten wurden.
+
 ## [0.7.3] - 2026-11-13
 ### Changed
 - **GPU-Widget (`src/ui/gpu_widget.py`):** Lüfterdrehzahl (`RPM`) mittig zwischen Temperatur (links) und Leistung (rechts) zentriert und mit einem eigenen vektorbasierten 3-Blatt-Lüftericon (`FanIconWidget` via `QPainter`) versehen.

@@ -19,6 +19,7 @@ class MiniLiveGraphWidget(QWidget):
         grid_color: str = "#32383D",
         max_value: float = 100.0,
         dynamic_scale: bool = False,
+        min_ceiling: float = 1.0,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
@@ -30,6 +31,7 @@ class MiniLiveGraphWidget(QWidget):
         self._grid_color = QColor(grid_color)
         self._max_value = max(1.0, max_value)
         self._dynamic_scale = dynamic_scale
+        self._min_ceiling = max(1.0, min_ceiling)
         self._ui_scale = 1.0
         self.setMinimumHeight(34)
 
@@ -77,6 +79,15 @@ class MiniLiveGraphWidget(QWidget):
             self._secondary_history.append(0.0)
         self.update()
 
+    def current_ceiling(self) -> float:
+        """Return the active Y-axis ceiling for the current history buffer."""
+        if not self._dynamic_scale:
+            return max(1.0, self._max_value)
+        peak = max(self._history) if self._history else 0.0
+        if self._has_secondary and self._secondary_history:
+            peak = max(peak, max(self._secondary_history))
+        return max(self._min_ceiling, peak * 1.2)
+
     def paintEvent(self, _event: object) -> None:
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
@@ -96,13 +107,7 @@ class MiniLiveGraphWidget(QWidget):
             painter.end()
             return
 
-        if self._dynamic_scale:
-            peak = max(samples) if samples else 0.0
-            if self._has_secondary and self._secondary_history:
-                peak = max(peak, max(self._secondary_history))
-            ceiling = max(1.0, peak * 1.2)
-        else:
-            ceiling = max(1.0, self._max_value)
+        ceiling = self.current_ceiling()
 
         painter.setClipRect(rect.adjusted(1, 1, -1, -1))
         n = len(samples)

@@ -90,6 +90,8 @@ class CpuSystemWidget(BaseDesktopWidget):
             self.config.vram_color,
             self.config.grid_color,
             128.0,
+            dynamic_scale=True,
+            min_ceiling=128.0,
         )
         v_pf.addLayout(r_pf)
         v_pf.addWidget(self.graph_pf)
@@ -185,10 +187,9 @@ class CpuSystemWidget(BaseDesktopWidget):
 
         if self.config.cpu_show_page_faults:
             pf_val = cpu.page_faults_per_sec if cpu.page_faults_per_sec is not None else 0.0
-            pf_ceil = max(128.0, pf_val * 1.2)
+            self.graph_pf.push_value(pf_val)
             self.lbl_pf.setText(f"PageFaults/sec: {pf_val:.0f}")
-            self.lbl_pf_max.setText(f"Max: {pf_ceil:.0f}")
-            self.graph_pf.push_value(pf_val, pf_ceil)
+            self.lbl_pf_max.setText(f"Max: {self.graph_pf.current_ceiling():.0f}")
 
         if self.config.cpu_show_disk_io:
             self.lbl_disk_r.setText(f"Disk R: {cpu.disk_read_mb_s:.1f} MB/s")
