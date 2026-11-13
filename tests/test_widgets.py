@@ -12,6 +12,7 @@ from src.sensors.models import CpuSystemSample, GpuSample, SystemSnapshot
 from src.ui.clock_widget import ClockWidget, format_uptime
 from src.ui.cpu_widget import CpuSystemWidget
 from src.ui.gpu_widget import GpuWidget
+from src.ui.graph_canvas import MiniLiveGraphWidget
 
 
 def _ensure_qapp() -> QApplication:
@@ -92,3 +93,22 @@ def test_widget_edge_snapping() -> None:
         assert snapped.x() == avail.x()
         assert snapped.y() == avail.y()
     clock.close()
+
+
+def test_graph_dynamic_min_ceiling() -> None:
+    _ensure_qapp()
+    graph = MiniLiveGraphWidget(history_len=15, max_value=128.0, dynamic_scale=True, min_ceiling=128.0)
+    assert graph.current_ceiling() == 128.0
+
+    graph.push_value(500.0)
+    assert graph.current_ceiling() == 600.0
+
+    # Subsequent zero samples must keep the peak ceiling until the spike scrolls out
+    for _ in range(14):
+        graph.push_value(0.0)
+    assert graph.current_ceiling() == 600.0
+
+    # One more zero pushes the spike out of the 15-sample window
+    graph.push_value(0.0)
+    assert graph.current_ceiling() == 128.0
+    graph.close()
