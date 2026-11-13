@@ -4,6 +4,10 @@ Alle relevanten Änderungen an diesem Projekt werden in dieser Datei dokumentier
 Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/),
 und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 
+## [0.8.2] - 2026-11-13
+### Fixed
+- **GPU-Leistungslinie im Graphen (`src/ui/graph_canvas.py`, `src/ui/gpu_widget.py`):** Wenn „Lüfter (RPM/%) und Leistungsaufnahme (Watt) anzeigen“ deaktiviert ist, wird nun über `set_secondary_enabled(False)` auch die gelbe Leistungslinie aus dem Temperatur-Graphen entfernt.
+
 ## [0.8.1] - 2026-11-13
 ### Changed
 - **Einstellungen-Feinschliff (`src/ui/settings_dlg.py`):**

@@ -203,6 +203,8 @@ class GpuWidget(BaseDesktopWidget):
 
         self.graph_util.set_colors(self.config.primary_color, self.config.grid_color)
         self.graph_temp.set_colors(self.config.temp_color, self.config.grid_color, self.config.secondary_color)
+        if not self.config.gpu_show_power_fan:
+            self.graph_temp.set_secondary_enabled(False)
         self.graph_vram.set_colors(self.config.vram_color, self.config.grid_color)
 
         for g in (self.graph_util, self.graph_temp, self.graph_vram):

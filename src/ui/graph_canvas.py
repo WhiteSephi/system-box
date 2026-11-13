@@ -62,6 +62,13 @@ class MiniLiveGraphWidget(QWidget):
             self._secondary_history = deque(sec_pad + sec_items, maxlen=target)
             self.update()
 
+    def set_secondary_enabled(self, enabled: bool) -> None:
+        """Enable or disable rendering of the secondary overlay line."""
+        if not enabled:
+            self._has_secondary = False
+            self._secondary_history = deque([0.0] * self._history.maxlen, maxlen=self._history.maxlen)
+        self.update()
+
     def push_value(
         self,
         value: float,
