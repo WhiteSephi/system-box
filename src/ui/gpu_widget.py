@@ -117,6 +117,7 @@ class GpuWidget(BaseDesktopWidget):
         l_temp.addStretch(1)
 
         self._fan_box = QWidget()
+        self._fan_box.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Preferred)
         self._fan_layout = QHBoxLayout(self._fan_box)
         self._fan_layout.setContentsMargins(0, 0, 0, 0)
         self._fan_layout.setSpacing(4)
@@ -246,9 +247,8 @@ class GpuWidget(BaseDesktopWidget):
             ("", ""),
         ]
 
-        row_w = self._sec_temp.width()
-        if row_w <= 0:
-            row_w = max(1, self.width() - 2 * self.sc(9))
+        margins = self._layout.contentsMargins()
+        row_w = max(1, self.width() - margins.left() - margins.right())
 
         fm_sub = self.lbl_fan_pwr.fontMetrics()
         fm_val = self.lbl_power.fontMetrics()
@@ -269,6 +269,8 @@ class GpuWidget(BaseDesktopWidget):
         self._fan_box.setVisible(bool(chosen_fan))
         self.lbl_power_max.setText(chosen_max)
         self.lbl_power_max.setVisible(bool(chosen_max))
+        self._fan_box.updateGeometry()
+        self._r2.invalidate()
 
     def update_snapshot(self, snapshot: SystemSnapshot) -> None:
         """Render the latest GPU telemetry sample."""

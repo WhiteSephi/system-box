@@ -112,3 +112,75 @@ def test_graph_dynamic_min_ceiling() -> None:
     graph.push_value(0.0)
     assert graph.current_ceiling() == 128.0
     graph.close()
+
+
+def test_widget_extreme_sizes_no_overlap_or_clipping() -> None:
+    app = _ensure_qapp()
+    cfg = AppConfig()
+    snap = SystemSnapshot(
+        cpu=CpuSystemSample(
+            cpu_percent=42.5,
+            cpu_max_core_percent=88.0,
+            cpu_freq_mhz=4800.0,
+            cpu_temp_c=61.0,
+            ram_used_gb=14.2,
+            ram_total_gb=32.0,
+            ram_percent=44.4,
+            page_faults_per_sec=250.0,
+            disk_read_mb_s=15.4,
+            disk_write_mb_s=8.2,
+            uptime_seconds=3600,
+        ),
+        active_gpu=GpuSample(
+            index=0,
+            name="Generic Test GPU",
+            vendor="nvidia",
+            available=True,
+            util_percent=65.0,
+            clock_mhz=2100,
+            temp_c=58.0,
+            fan_rpm=1450,
+            fan_percent=48,
+            vram_used_mb=6144.0,
+            vram_total_mb=16384.0,
+            power_watts=195.0,
+            power_limit_watts=300.0,
+        ),
+    )
+
+    gpu = GpuWidget(cfg)
+    cpu = CpuSystemWidget(cfg)
+    clock = ClockWidget(cfg)
+
+    for w in (gpu, cpu, clock):
+        w.show()
+        w.update_snapshot(snap)
+        # Test extra-small (minimumSize) and extra-large sizes
+        for target_size in (w.minimumSize(), w.minimumSize() * 2):
+            w.resize(target_size)
+            app.processEvents()
+            for lbl in w.findChildren(type(gpu.lbl_title)):
+                if not lbl.isVisibleTo(w) or not lbl.text():
+                    continue
+                pos = lbl.mapTo(w, QPoint(0, 0))
+                assert pos.x() >= 0 and pos.y() >= 0
+                assert pos.x() + lbl.width() <= w.width() + 1
+                assert pos.y() + lbl.height() <= w.height() + 1
+
+    # Verify GPU Row 2: no text clipping & no overlap at minimum size, full details at large size
+    gpu.resize(gpu.minimumSize())
+    app.processEvents()
+    assert not gpu.lbl_power_max.isVisibleTo(gpu)
+    for lbl in (gpu.lbl_temp, gpu.lbl_power):
+        assert lbl.fontMetrics().horizontalAdvance(lbl.text()) <= lbl.width() + 1
+
+    gpu.resize(640, 360)
+    app.processEvents()
+    assert gpu.lbl_power_max.isVisibleTo(gpu)
+    assert "(48%)" in gpu.lbl_fan_pwr.text()
+    assert gpu._temp_box.geometry().right() < gpu._fan_box.geometry().left()
+    assert gpu._fan_box.geometry().right() < gpu._pwr_box.geometry().left()
+
+    gpu.close()
+    cpu.close()
+    clock.close()

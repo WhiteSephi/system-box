@@ -4,6 +4,11 @@ Alle relevanten Änderungen an diesem Projekt werden in dieser Datei dokumentier
 Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/),
 und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 
+## [0.7.8] - 2026-11-13
+### Fixed
+- **Live-Resize-Neuberechnung (`src/ui/gpu_widget.py`):** Breite in `_apply_row2_responsive()` direkt aus `self.width()` statt verzögertem `_sec_temp.width()` berechnet und `_fan_box` mit `QSizePolicy.Fixed` + `invalidate()` versehen, sodass beim Verkleinern nichts mehr abgeschnitten wird.
+- **Unit-Tests (`tests/test_widgets.py`):** `test_widget_extreme_sizes_no_overlap_or_clipping` prüft alle Widgets bei Minimal- und Maximalgröße auf Überlappungen und Text-Clipping.
+
 ## [0.7.7] - 2026-11-13
 ### Fixed
 - **Responsives GPU-Layout (`src/ui/gpu_widget.py`):** Zeile 2 (Temp/Lüfter/Leistung) blendet bei schmaler Widget-Breite automatisch schrittweise optionale Details aus (`(31%)` → `max <Limit> /` → `RPM`-Text), sodass bei zentriertem Lüfter nichts mehr überlappt oder abgeschnitten wird.
