@@ -19,8 +19,7 @@
 | **Betriebssystem** | Windows 10 / 11 (64-Bit) oder Linux (x86_64, KDE Plasma / X11 oder Wayland mit System-Tray) |
 | **Prozessor (CPU)** | x86_64 Dual-Core (sehr geringe Dauerlast bei Standard-Intervall `1000 ms`) |
 | **Arbeitsspeicher (RAM)** | ca. 50–90 MB im Betrieb (Qt6 + 3 Live-Widgets; mind. 128 MB frei empfohlen) |
-| **Speicherplatz (Binary)** | ca. 23 MB für die Standalone-`.exe` + `< 1 MB` für die lokale Konfiguration |
-| **Speicherplatz (Quellcode)** | Python 3.11+ sowie ca. 250–300 MB für `.venv` (`PySide6`, `psutil`, `nvidia-ml-py`) |
+| **Speicherplatz** | ca. 23 MB für die Standalone-`.exe` + `< 1 MB` für die lokale Konfiguration |
 | **GPU (optional)** | NVIDIA mit aktuellem Treiber (NVML); AMD/Intel via Windows-Fallback bzw. Linux `hwmon` |
 | **Berechtigungen** | Keine Administrator- oder Root-Rechte erforderlich |
 
