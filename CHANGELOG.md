@@ -4,6 +4,10 @@ Alle relevanten Änderungen an diesem Projekt werden in dieser Datei dokumentier
 Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/),
 und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 
+## [0.7.2] - 2026-11-13
+### Added
+- Multi-Size App-Icon (`assets/app_icon.ico`, 16–256 px) direkt aus dem Vektor-Tray-Icon (`render_systembox_pixmap`) erzeugt und in `SystemBox.spec` für die Windows-`.exe` eingebunden.
+
 ## [0.7.1] - 2026-11-12
 ### Fixed
 - Tab `Allgemein` in `SettingsDialog` mit `QScrollArea` und größerer Standardhöhe versehen, damit Gruppen und Checkboxen bei vielen Optionen nicht vertikal zusammengeschoben werden.

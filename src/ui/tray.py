@@ -6,13 +6,14 @@ from PySide6.QtCore import QPointF, QRectF, Qt
 from PySide6.QtGui import QColor, QIcon, QPainter, QPen, QPolygonF, QPixmap
 
 
-def create_systembox_icon(accent_hex: str = "#4A9EFF") -> QIcon:
-    """Create a crisp programmatic chip/pulse icon for tray and windows."""
-    pix = QPixmap(64, 64)
+def render_systembox_pixmap(size: int = 64, accent_hex: str = "#4A9EFF") -> QPixmap:
+    """Render the programmatic chip/pulse icon at any square pixel size."""
+    pix = QPixmap(size, size)
     pix.fill(Qt.GlobalColor.transparent)
 
     painter = QPainter(pix)
     painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+    painter.scale(size / 64.0, size / 64.0)
 
     # Outer chip body
     body = QRectF(10, 10, 44, 44)
@@ -44,4 +45,12 @@ def create_systembox_icon(accent_hex: str = "#4A9EFF") -> QIcon:
     painter.drawPolyline(pulse)
 
     painter.end()
-    return QIcon(pix)
+    return pix
+
+
+def create_systembox_icon(accent_hex: str = "#4A9EFF") -> QIcon:
+    """Create a crisp multi-resolution chip/pulse icon for tray and windows."""
+    icon = QIcon()
+    for sz in (32, 64, 128):
+        icon.addPixmap(render_systembox_pixmap(sz, accent_hex))
+    return icon
