@@ -4,6 +4,10 @@ Alle relevanten Änderungen an diesem Projekt werden in dieser Datei dokumentier
 Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/),
 und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 
+## [0.7.6] - 2026-11-13
+### Changed
+- **GPU-Widget Feinschliff (`src/ui/gpu_widget.py`):** Lüfter-Block (`_fan_box`) über symmetrische `Ignored`-Container links und rechts exakt auf die horizontale Widget-Mitte zentriert; Leistungsanzeige kompakter als `max <Limit> / <Aktuell> W` formatiert.
+
 ## [0.7.5] - 2026-11-13
 ### Changed
 - **Binary-Größe reduziert (`SystemBox.spec`):** Windows-Pfadnormalisierung (`\` → `/`) für den `PySide6/translations`-Filter korrigiert (inkl. Ausschluss von `qt_help_*`) sowie ungenutzte Qt-Plugins (`qpdf.dll`, `qwebp.dll`, `qtiff.dll`, `qsvg.dll`, `qsvgicon.dll`, `qtuiotouchplugin.dll` u. a.) entfernt. `SystemBox.exe` schrumpft dadurch von `25,87 MB` auf `23,01 MB`.

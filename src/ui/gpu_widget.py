@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from PySide6.QtCore import QPointF, Qt
 from PySide6.QtGui import QColor, QPainter, QPainterPath
-from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QSizePolicy, QVBoxLayout, QWidget
 
 from src.config import AppConfig
 from src.sensors.models import GpuSample, SystemSnapshot
@@ -107,7 +107,14 @@ class GpuWidget(BaseDesktopWidget):
         v2.setSpacing(2)
         r2 = QHBoxLayout()
         r2.setSpacing(4)
+
+        self._temp_box = QWidget()
+        self._temp_box.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
+        l_temp = QHBoxLayout(self._temp_box)
+        l_temp.setContentsMargins(0, 0, 0, 0)
         self.lbl_temp = QLabel("-- °C")
+        l_temp.addWidget(self.lbl_temp)
+        l_temp.addStretch(1)
 
         self._fan_box = QWidget()
         self._fan_layout = QHBoxLayout(self._fan_box)
@@ -119,16 +126,22 @@ class GpuWidget(BaseDesktopWidget):
         self._fan_layout.addWidget(self.fan_icon)
         self._fan_layout.addWidget(self.lbl_fan_pwr)
 
+        self._pwr_box = QWidget()
+        self._pwr_box.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
+        self._pwr_layout = QHBoxLayout(self._pwr_box)
+        self._pwr_layout.setContentsMargins(0, 0, 0, 0)
+        self._pwr_layout.setSpacing(4)
         self.lbl_power_max = QLabel("")
         self.lbl_power_max.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         self.lbl_power = QLabel("")
         self.lbl_power.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        r2.addWidget(self.lbl_temp)
-        r2.addStretch(1)
-        r2.addWidget(self._fan_box)
-        r2.addStretch(1)
-        r2.addWidget(self.lbl_power_max)
-        r2.addWidget(self.lbl_power)
+        self._pwr_layout.addStretch(1)
+        self._pwr_layout.addWidget(self.lbl_power_max)
+        self._pwr_layout.addWidget(self.lbl_power)
+
+        r2.addWidget(self._temp_box, 1)
+        r2.addWidget(self._fan_box, 0)
+        r2.addWidget(self._pwr_box, 1)
         self.graph_temp = MiniLiveGraphWidget(self.config.history_seconds, self.config.temp_color, self.config.grid_color, 100.0)
         v2.addLayout(r2)
         v2.addWidget(self.graph_temp)
@@ -239,7 +252,7 @@ class GpuWidget(BaseDesktopWidget):
             self.lbl_power.setVisible(True)
             if gpu.power_limit_watts and gpu.power_limit_watts > 0:
                 pwr_pct = min(100.0, (gpu.power_watts / gpu.power_limit_watts) * 100.0)
-                self.lbl_power_max.setText(f"max {gpu.power_limit_watts:.0f} W")
+                self.lbl_power_max.setText(f"max {gpu.power_limit_watts:.0f} /")
                 self.lbl_power_max.setVisible(True)
             else:
                 self.lbl_power_max.setText("")
