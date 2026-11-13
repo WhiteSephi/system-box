@@ -105,8 +105,8 @@ class GpuWidget(BaseDesktopWidget):
         v2 = QVBoxLayout(self._sec_temp)
         v2.setContentsMargins(0, 0, 0, 0)
         v2.setSpacing(2)
-        r2 = QHBoxLayout()
-        r2.setSpacing(4)
+        self._r2 = QHBoxLayout()
+        self._r2.setSpacing(4)
 
         self._temp_box = QWidget()
         self._temp_box.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
@@ -139,11 +139,11 @@ class GpuWidget(BaseDesktopWidget):
         self._pwr_layout.addWidget(self.lbl_power_max)
         self._pwr_layout.addWidget(self.lbl_power)
 
-        r2.addWidget(self._temp_box, 1)
-        r2.addWidget(self._fan_box, 0)
-        r2.addWidget(self._pwr_box, 1)
+        self._r2.addWidget(self._temp_box, 1)
+        self._r2.addWidget(self._fan_box, 0)
+        self._r2.addWidget(self._pwr_box, 1)
         self.graph_temp = MiniLiveGraphWidget(self.config.history_seconds, self.config.temp_color, self.config.grid_color, 100.0)
-        v2.addLayout(r2)
+        v2.addLayout(self._r2)
         v2.addWidget(self.graph_temp)
         self._layout.addWidget(self._sec_temp, 1)
 
@@ -209,6 +209,66 @@ class GpuWidget(BaseDesktopWidget):
             g.set_history_length(self.config.history_seconds)
 
         self.setMinimumSize(self.sc(220), self.sc(175))
+        self._apply_row2_responsive()
+
+    def resizeEvent(self, event) -> None:  # noqa: N802
+        super().resizeEvent(event)
+        self._apply_row2_responsive()
+
+    def _apply_row2_responsive(self) -> None:
+        """Progressively trim optional Row 2 details when widget width is narrow."""
+        gpu = self._last_gpu
+        if not gpu.available or not self.config.gpu_show_power_fan:
+            self.lbl_power_max.setVisible(False)
+            self._fan_box.setVisible(False)
+            return
+
+        has_pwr = gpu.power_watts is not None
+        has_limit = has_pwr and bool(gpu.power_limit_watts and gpu.power_limit_watts > 0)
+        pwr_max_full = f"max {gpu.power_limit_watts:.0f} /" if has_limit else ""
+
+        fan_full = ""
+        fan_rpm_only = ""
+        fan_pct_only = ""
+        if gpu.fan_rpm is not None:
+            fan_rpm_only = f"{gpu.fan_rpm} RPM"
+            fan_full = f"{fan_rpm_only} ({gpu.fan_percent}%)" if gpu.fan_percent is not None else fan_rpm_only
+            if gpu.fan_percent is not None:
+                fan_pct_only = f"{gpu.fan_percent}%"
+        elif gpu.fan_percent is not None:
+            fan_full = fan_pct_only = f"{gpu.fan_percent}%"
+
+        candidates = [
+            (fan_full, pwr_max_full),
+            (fan_rpm_only or fan_full, pwr_max_full),
+            (fan_rpm_only or fan_full, ""),
+            (fan_pct_only, ""),
+            ("", ""),
+        ]
+
+        row_w = self._sec_temp.width()
+        if row_w <= 0:
+            row_w = max(1, self.width() - 2 * self.sc(9))
+
+        fm_sub = self.lbl_fan_pwr.fontMetrics()
+        fm_val = self.lbl_power.fontMetrics()
+        need_left = self.lbl_temp.fontMetrics().horizontalAdvance(self.lbl_temp.text())
+        pwr_w = fm_val.horizontalAdvance(self.lbl_power.text()) if has_pwr else 0
+
+        chosen_fan, chosen_max = candidates[-1]
+        for cand_fan, cand_max in candidates:
+            fan_w = (self.fan_icon.width() + self._fan_layout.spacing() + fm_sub.horizontalAdvance(cand_fan)) if cand_fan else 0
+            max_w = (fm_sub.horizontalAdvance(cand_max) + self._pwr_layout.spacing()) if cand_max else 0
+            need_right = max_w + pwr_w
+            side_w = (row_w - fan_w - 2 * self._r2.spacing()) / 2.0
+            if need_left <= side_w and need_right <= side_w:
+                chosen_fan, chosen_max = cand_fan, cand_max
+                break
+
+        self.lbl_fan_pwr.setText(chosen_fan)
+        self._fan_box.setVisible(bool(chosen_fan))
+        self.lbl_power_max.setText(chosen_max)
+        self.lbl_power_max.setVisible(bool(chosen_max))
 
     def update_snapshot(self, snapshot: SystemSnapshot) -> None:
         """Render the latest GPU telemetry sample."""
@@ -252,30 +312,14 @@ class GpuWidget(BaseDesktopWidget):
             self.lbl_power.setVisible(True)
             if gpu.power_limit_watts and gpu.power_limit_watts > 0:
                 pwr_pct = min(100.0, (gpu.power_watts / gpu.power_limit_watts) * 100.0)
-                self.lbl_power_max.setText(f"max {gpu.power_limit_watts:.0f} /")
-                self.lbl_power_max.setVisible(True)
-            else:
-                self.lbl_power_max.setText("")
-                self.lbl_power_max.setVisible(False)
         else:
-            self.lbl_power_max.setText("")
-            self.lbl_power_max.setVisible(False)
             self.lbl_power.setText("")
             self.lbl_power.setVisible(False)
 
         if gpu.temp_c is not None:
             self.graph_temp.push_value(gpu.temp_c, 100.0, secondary_value=pwr_pct)
 
-        fan_txt = ""
-        if self.config.gpu_show_power_fan:
-            if gpu.fan_rpm is not None:
-                fan_txt = f"{gpu.fan_rpm} RPM"
-                if gpu.fan_percent is not None:
-                    fan_txt += f" ({gpu.fan_percent}%)"
-            elif gpu.fan_percent is not None:
-                fan_txt = f"{gpu.fan_percent}%"
-        self.lbl_fan_pwr.setText(fan_txt)
-        self._fan_box.setVisible(bool(fan_txt))
+        self._apply_row2_responsive()
 
         vram_pct = 0.0
         if gpu.vram_used_mb is not None and gpu.vram_total_mb:
