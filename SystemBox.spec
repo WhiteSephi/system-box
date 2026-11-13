@@ -41,12 +41,30 @@ excluded_binaries = {
     'qcertonlybackend.dll',
     'qopensslbackend.dll',
     'qschannelbackend.dll',
+    'qtuiotouchplugin.dll',
+    'qsvgicon.dll',
+    'qgif.dll',
+    'qicns.dll',
+    'qjpeg.dll',
+    'qpdf.dll',
+    'qsvg.dll',
+    'qtga.dll',
+    'qtiff.dll',
+    'qwbmp.dll',
+    'qwebp.dll',
 }
 
 a.binaries = [x for x in a.binaries if not any(ex in x[0].lower() for ex in excluded_binaries)]
 
-# Strip unused language files from Qt (only German and English needed)
-a.datas = [x for x in a.datas if not (x[0].startswith('PySide6/translations') and not any(k in x[0] for k in ['_de.', '_en.']))]
+# Strip unused language files from Qt (only German and English needed, no qt_help)
+def _keep_data(item: tuple) -> bool:
+    norm = item[0].replace('\\', '/')
+    if norm.startswith('PySide6/translations/'):
+        return ('_de.' in norm or '_en.' in norm) and 'qt_help_' not in norm
+    return True
+
+
+a.datas = [x for x in a.datas if _keep_data(x)]
 
 pyz = PYZ(a.pure)
 
