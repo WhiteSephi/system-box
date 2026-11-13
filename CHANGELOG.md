@@ -4,6 +4,10 @@ Alle relevanten Änderungen an diesem Projekt werden in dieser Datei dokumentier
 Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/),
 und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 
+## [0.10.0] - 2026-11-13
+### Changed
+- **GPU-Temperatur-Warnschwelle statt VRAM-Warnschwelle (`src/config.py`, `src/ui/settings_dlg.py`, `src/ui/gpu_widget.py`):** `gpu_vram_warn_percent` durch `gpu_temp_warn_c` (Standard `80 °C`, Bereich `50–105 °C`) ersetzt. Ab Erreichen des Schwellenwerts zeigt das GPU-Widget oben im Header ein deutliches Warn-Badge (`TEMP XX°C`, ggf. kombiniert mit aktiven Drosselungsgründen) inklusive Tooltip.
+
 ## [0.9.1] - 2026-11-13
 ### Fixed
 - **Versionsanzeige im `Über`-Tab (`src/__init__.py`):** `__version__` auf den aktuellen Stand (`0.9.1`) aktualisiert, damit im `Über`-Tab der Einstellungen immer die korrekte Version angezeigt wird.

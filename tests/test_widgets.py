@@ -184,3 +184,35 @@ def test_widget_extreme_sizes_no_overlap_or_clipping() -> None:
     gpu.close()
     cpu.close()
     clock.close()
+
+
+def test_gpu_temp_warning_badge() -> None:
+    app = _ensure_qapp()
+    cfg = AppConfig()
+    cfg.gpu_temp_warn_c = 80
+    gpu = GpuWidget(cfg)
+    gpu.show()
+
+    cool_snap = SystemSnapshot(
+        cpu=CpuSystemSample(0, 0, 0, None, 0, 0, 0, 0, 0, 0, 0),
+        active_gpu=GpuSample(
+            index=0, name="Generic Test GPU", vendor="nvidia", available=True,
+            util_percent=30.0, clock_mhz=1800, temp_c=72.0,
+        ),
+    )
+    gpu.update_snapshot(cool_snap)
+    app.processEvents()
+    assert not gpu.lbl_throttle.isVisibleTo(gpu)
+
+    hot_snap = SystemSnapshot(
+        cpu=CpuSystemSample(0, 0, 0, None, 0, 0, 0, 0, 0, 0, 0),
+        active_gpu=GpuSample(
+            index=0, name="Generic Test GPU", vendor="nvidia", available=True,
+            util_percent=99.0, clock_mhz=2500, temp_c=84.0,
+        ),
+    )
+    gpu.update_snapshot(hot_snap)
+    app.processEvents()
+    assert gpu.lbl_throttle.isVisibleTo(gpu)
+    assert "TEMP 84°C" in gpu.lbl_throttle.text()
+    gpu.close()

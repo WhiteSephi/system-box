@@ -297,10 +297,21 @@ class GpuWidget(BaseDesktopWidget):
             self.lbl_throttle.setVisible(False)
             return
 
+        warnings: list[str] = []
+        tooltips: list[str] = []
+        if gpu.temp_c is not None and gpu.temp_c >= self.config.gpu_temp_warn_c:
+            warnings.append(f"TEMP {gpu.temp_c:.0f}°C")
+            tooltips.append(f"Temperatur-Warnschwelle ({self.config.gpu_temp_warn_c} °C) erreicht")
         if gpu.throttle_reasons:
-            self.lbl_throttle.setText(" / ".join(gpu.throttle_reasons))
+            warnings.extend(gpu.throttle_reasons)
+            tooltips.append("Drosselung: " + ", ".join(gpu.throttle_reasons))
+
+        if warnings:
+            self.lbl_throttle.setText(" / ".join(warnings))
+            self.lbl_throttle.setToolTip("\n".join(tooltips))
             self.lbl_throttle.setVisible(True)
         else:
+            self.lbl_throttle.setToolTip("")
             self.lbl_throttle.setVisible(False)
 
         util_txt = f"{gpu.util_percent:.0f}%" if gpu.util_percent is not None else "--%"
@@ -333,8 +344,7 @@ class GpuWidget(BaseDesktopWidget):
             vram_pct = (gpu.vram_used_mb / gpu.vram_total_mb) * 100.0
             self.lbl_vram_used.setText(f"VRAM: {gpu.vram_used_mb / 1024.0:.1f} GB ({vram_pct:.0f}%)")
             self.lbl_vram_total.setText(f"{gpu.vram_total_mb / 1024.0:.1f} GB")
-            vram_col = self.config.temp_color if vram_pct >= self.config.gpu_vram_warn_percent else self.config.vram_color
-            self.graph_vram.set_colors(vram_col, self.config.grid_color)
+            self.graph_vram.set_colors(self.config.vram_color, self.config.grid_color)
             self.graph_vram.push_value(vram_pct, 100.0)
         elif gpu.vram_used_mb is not None:
             self.lbl_vram_used.setText(f"VRAM: {gpu.vram_used_mb:.0f} MB")

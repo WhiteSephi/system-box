@@ -110,7 +110,7 @@ class AppConfig:
     cpu_show_disk_io: bool = True
     cpu_show_page_faults: bool = False
     gpu_show_power_fan: bool = True
-    gpu_vram_warn_percent: int = 90
+    gpu_temp_warn_c: int = 80
 
     # Theme & Colors
     theme_name: str = DEFAULT_THEME_NAME
@@ -184,7 +184,7 @@ class AppConfig:
         self.opacity = max(20, min(100, int(self.opacity)))
         self.start_delay_sec = max(0, min(60, int(self.start_delay_sec)))
         self.selected_gpu_index = max(0, int(self.selected_gpu_index))
-        self.gpu_vram_warn_percent = max(50, min(99, int(self.gpu_vram_warn_percent)))
+        self.gpu_temp_warn_c = max(50, min(105, int(self.gpu_temp_warn_c)))
 
         defaults = _default_widgets()
         for key, default_wc in defaults.items():
