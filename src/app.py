@@ -75,7 +75,7 @@ class SystemBoxApp(QObject):
         self._tray_menu.addSeparator()
 
         act_settings = QAction("Einstellungen...", self._tray_menu)
-        act_settings.triggered.connect(self.open_settings)
+        act_settings.triggered.connect(lambda: self.open_settings())
         self._tray_menu.addAction(act_settings)
 
         act_quit = QAction("Beenden", self._tray_menu)
@@ -137,9 +137,11 @@ class SystemBoxApp(QObject):
         self.gpu_widget.update_snapshot(snapshot)
         self.cpu_widget.update_snapshot(snapshot)
 
-    def open_settings(self) -> None:
-        """Show or raise the central SettingsDialog."""
+    def open_settings(self, tab_key: str = "") -> None:
+        """Show or raise the central SettingsDialog, optionally selecting a tab."""
         if self._settings_dlg is not None and self._settings_dlg.isVisible():
+            if tab_key:
+                self._settings_dlg.select_tab(tab_key)
             self._settings_dlg.raise_()
             self._settings_dlg.activateWindow()
             return
@@ -148,6 +150,7 @@ class SystemBoxApp(QObject):
             config=self.config,
             gpus=self.sensor_manager.list_gpus(),
             on_apply=self.apply_all_configs,
+            initial_tab=tab_key,
         )
         self._settings_dlg.show()
         self._settings_dlg.raise_()

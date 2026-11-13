@@ -74,8 +74,10 @@ class GpuWidget(BaseDesktopWidget):
         self.lbl_title = QLabel("GPU")
         self.lbl_throttle = QLabel("")
         self.lbl_throttle.setVisible(False)
+        self.btn_settings = self.create_gear_button()
         hdr.addWidget(self.lbl_title, 1)
         hdr.addWidget(self.lbl_throttle)
+        hdr.addWidget(self.btn_settings)
         self._layout.addLayout(hdr)
 
         self._hdr_line = QFrame()
@@ -172,6 +174,7 @@ class GpuWidget(BaseDesktopWidget):
 
         self.lbl_title.setFont(self.make_font(10.0, bold=True))
         self.lbl_title.setStyleSheet(f"color: {self.config.title_color};")
+        self.style_gear_button(self.btn_settings)
 
         line_col = QColor(self.config.border_color)
         self._hdr_line.setStyleSheet(

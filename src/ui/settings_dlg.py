@@ -272,12 +272,23 @@ class ColorButton(QPushButton):
 class SettingsDialog(QDialog):
     """Tabbed settings dialog for widgets, sensors, scaling and themes."""
 
+    TAB_KEYS = {
+        "general": 0,
+        "display": 1,
+        "clock": 2,
+        "gpu": 3,
+        "cpu": 4,
+        "theme": 5,
+        "about": 6,
+    }
+
     def __init__(
         self,
         config: AppConfig,
         gpus: list[GpuInfo],
         on_apply: Callable[[], None],
         parent: QWidget | None = None,
+        initial_tab: str = "",
     ) -> None:
         super().__init__(parent)
         self.config = config
@@ -291,6 +302,14 @@ class SettingsDialog(QDialog):
         self._build_ui()
         self._restore_geometry()
         self._load_from_config()
+        if initial_tab:
+            self.select_tab(initial_tab)
+
+    def select_tab(self, tab_key: str) -> None:
+        """Switch to the tab matching a widget or section key."""
+        idx = self.TAB_KEYS.get(tab_key)
+        if idx is not None and 0 <= idx < self.tabs.count():
+            self.tabs.setCurrentIndex(idx)
 
     def _restore_geometry(self) -> None:
         """Restore window position and size if valid on current screens."""

@@ -2,20 +2,25 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import QPoint, QRect, QRectF, Qt, QTimer, Signal
+import math
+
+from PySide6.QtCore import QPoint, QPointF, QRect, QRectF, QSize, Qt, QTimer, Signal
 from PySide6.QtGui import (
     QAction,
     QColor,
     QContextMenuEvent,
     QFont,
+    QIcon,
     QMouseEvent,
     QMoveEvent,
     QPainter,
+    QPainterPath,
     QPaintEvent,
     QPen,
+    QPixmap,
     QResizeEvent,
 )
-from PySide6.QtWidgets import QApplication, QMenu, QSizeGrip, QWidget
+from PySide6.QtWidgets import QApplication, QMenu, QPushButton, QSizeGrip, QWidget
 
 from src.config import AppConfig
 from src.ui.tray import create_systembox_icon
@@ -56,7 +61,7 @@ class VisualSizeGrip(QSizeGrip):
 class BaseDesktopWidget(QWidget):
     """Frameless floating desktop widget with Drag & Drop, scaling, and context menu."""
 
-    settings_requested = Signal()
+    settings_requested = Signal(str)
     quit_requested = Signal()
     config_changed = Signal()
 
@@ -93,6 +98,77 @@ class BaseDesktopWidget(QWidget):
         font.setPointSizeF(max(6.0, pt_size * self.ui_scale))
         font.setBold(bold)
         return font
+
+    @staticmethod
+    def _render_gear_icon(color: str, size: int) -> QIcon:
+        """Render a crisp 6-tooth vector gear icon scaled to the button size."""
+        pix = QPixmap(size, size)
+        pix.fill(Qt.GlobalColor.transparent)
+        painter = QPainter(pix)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(QColor(color))
+
+        cx = size / 2.0
+        cy = size / 2.0
+        r_out = size * 0.42
+        r_in = size * 0.305
+        r_hole = size * 0.135
+        path = QPainterPath()
+        teeth = 6
+        for i in range(teeth):
+            angle = i * (2.0 * math.pi / teeth)
+            half_step = math.pi / teeth
+            a1 = angle - half_step * 0.35
+            a2 = angle + half_step * 0.35
+            a3 = angle + half_step * 0.70
+            a4 = angle + half_step * 1.30
+            if i == 0:
+                path.moveTo(cx + r_out * math.cos(a1), cy + r_out * math.sin(a1))
+            else:
+                path.lineTo(cx + r_out * math.cos(a1), cy + r_out * math.sin(a1))
+            path.lineTo(cx + r_out * math.cos(a2), cy + r_out * math.sin(a2))
+            path.lineTo(cx + r_in * math.cos(a3), cy + r_in * math.sin(a3))
+            path.lineTo(cx + r_in * math.cos(a4), cy + r_in * math.sin(a4))
+        path.closeSubpath()
+        hole = QPainterPath()
+        hole.addEllipse(QPointF(cx, cy), r_hole, r_hole)
+        painter.drawPath(path.subtracted(hole))
+        painter.end()
+        return QIcon(pix)
+
+    def create_gear_button(self) -> QPushButton:
+        """Create a compact header gear button opening this widget's settings tab."""
+        btn = QPushButton(self)
+        btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn.setToolTip(f"{self.display_name}-Einstellungen öffnen")
+        btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        btn.clicked.connect(lambda: self.settings_requested.emit(self.widget_key))
+        return btn
+
+    def style_gear_button(self, btn: QPushButton) -> None:
+        """Apply HiDPI scaling and theme-aware styling to a header gear button."""
+        btn_sz = self.sc(18)
+        icon_sz = self.sc(12)
+        btn.setFixedSize(btn_sz, btn_sz)
+        btn.setIcon(self._render_gear_icon(self.config.muted_color, icon_sz))
+        btn.setIconSize(QSize(icon_sz, icon_sz))
+        b_col = QColor(self.config.border_color)
+        p_col = QColor(self.config.primary_color)
+        btn.setStyleSheet(
+            f"""
+            QPushButton {{
+                background-color: rgba({b_col.red()}, {b_col.green()}, {b_col.blue()}, 45);
+                border: 1px solid rgba({b_col.red()}, {b_col.green()}, {b_col.blue()}, 110);
+                border-radius: {self.sc(4)}px;
+                padding: 0px;
+            }}
+            QPushButton:hover {{
+                background-color: rgba({p_col.red()}, {p_col.green()}, {p_col.blue()}, 55);
+                border-color: {self.config.primary_color};
+            }}
+            """
+        )
 
     def _configure_window_flags(self) -> None:
         flags = Qt.WindowType.FramelessWindowHint | Qt.WindowType.Tool
@@ -274,7 +350,7 @@ class BaseDesktopWidget(QWidget):
 
     def mouseDoubleClickEvent(self, event: QMouseEvent) -> None:
         if event.button() == Qt.MouseButton.LeftButton:
-            self.settings_requested.emit()
+            self.settings_requested.emit(self.widget_key)
             event.accept()
             return
         super().mouseDoubleClickEvent(event)
@@ -299,7 +375,7 @@ class BaseDesktopWidget(QWidget):
         menu.addAction(act_hide)
 
         act_settings = QAction("Einstellungen...", menu)
-        act_settings.triggered.connect(self.settings_requested.emit)
+        act_settings.triggered.connect(lambda: self.settings_requested.emit(self.widget_key))
         menu.addAction(act_settings)
 
         menu.addSeparator()

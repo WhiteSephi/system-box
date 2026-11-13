@@ -4,6 +4,10 @@ Alle relevanten Änderungen an diesem Projekt werden in dieser Datei dokumentier
 Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/),
 und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 
+## [0.9.0] - 2026-11-13
+### Added
+- **Header-Zahnrad-Button für GPU & CPU (`src/ui/base_widget.py`, `src/ui/gpu_widget.py`, `src/ui/cpu_widget.py`, `src/ui/settings_dlg.py`, `src/app.py`):** GPU- und CPU-Widget zeigen oben rechts ein vektorbasiert gezeichnetes Zahnrad-Symbol (analog zu TrafficBox), das beim Klick direkt den passenden Einstellungs-Tab (`GPU-Monitor` bzw. `CPU & System`) öffnet.
+
 ## [0.8.2] - 2026-11-13
 ### Fixed
 - **GPU-Leistungslinie im Graphen (`src/ui/graph_canvas.py`, `src/ui/gpu_widget.py`):** Wenn „Lüfter (RPM/%) und Leistungsaufnahme (Watt) anzeigen“ deaktiviert ist, wird nun über `set_secondary_enabled(False)` auch die gelbe Leistungslinie aus dem Temperatur-Graphen entfernt.
