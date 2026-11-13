@@ -6,9 +6,10 @@ from collections.abc import Callable
 import platform
 import sys
 
-from PySide6.QtCore import Qt, QUrl, qVersion
-from PySide6.QtGui import QColor, QDesktopServices, QIcon, QPainter, QPixmap
+from PySide6.QtCore import QPoint, QRect, QSize, Qt, QUrl, qVersion
+from PySide6.QtGui import QCloseEvent, QColor, QDesktopServices, QHideEvent, QIcon, QPainter, QPixmap
 from PySide6.QtWidgets import (
+    QApplication,
     QCheckBox,
     QColorDialog,
     QComboBox,
@@ -286,12 +287,55 @@ class SettingsDialog(QDialog):
         self.setWindowTitle("SystemBox Einstellungen")
         self.setWindowIcon(create_systembox_icon(self.config.primary_color))
         self.setMinimumSize(640, 520)
-        self.resize(max(680, self.config.settings_width), max(620, self.config.settings_height))
-        if self.config.settings_pos_x >= 0 and self.config.settings_pos_y >= 0:
-            self.move(self.config.settings_pos_x, self.config.settings_pos_y)
 
         self._build_ui()
+        self._restore_geometry()
         self._load_from_config()
+
+    def _restore_geometry(self) -> None:
+        """Restore window position and size if valid on current screens."""
+        cfg_w = max(680, self.config.settings_width)
+        cfg_h = max(620, self.config.settings_height)
+        self.resize(cfg_w, cfg_h)
+
+        if self.config.settings_pos_x >= 0 and self.config.settings_pos_y >= 0:
+            target_pt = QPoint(self.config.settings_pos_x, self.config.settings_pos_y)
+            target_rect = QRect(target_pt, QSize(cfg_w, cfg_h))
+            for screen in QApplication.screens():
+                if screen.availableGeometry().intersects(target_rect):
+                    self.move(target_pt)
+                    return
+
+        primary = QApplication.primaryScreen()
+        if primary:
+            avail = primary.availableGeometry()
+            self.move(
+                avail.x() + max(0, (avail.width() - cfg_w) // 2),
+                avail.y() + max(0, (avail.height() - cfg_h) // 2),
+            )
+
+    def _save_geometry_to_config(self) -> None:
+        self.config.settings_pos_x = self.x()
+        self.config.settings_pos_y = self.y()
+        self.config.settings_width = self.width()
+        self.config.settings_height = self.height()
+
+    def closeEvent(self, event: QCloseEvent) -> None:  # noqa: N802
+        self._save_geometry_to_config()
+        self.config.save()
+        super().closeEvent(event)
+
+    def hideEvent(self, event: QHideEvent) -> None:  # noqa: N802
+        self._save_geometry_to_config()
+        super().hideEvent(event)
+
+    @staticmethod
+    def _wrap_in_scroll(widget: QWidget) -> QScrollArea:
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setWidget(widget)
+        return scroll
 
     def _build_ui(self) -> None:
         root = QVBoxLayout(self)
@@ -301,13 +345,13 @@ class SettingsDialog(QDialog):
         self.tabs = QTabWidget()
         root.addWidget(self.tabs, 1)
 
-        self.tabs.addTab(self._build_general_tab(), "Allgemein")
-        self.tabs.addTab(self._build_display_tab(), "Anzeige")
-        self.tabs.addTab(self._build_clock_tab(), "Uhrzeit && Datum")
-        self.tabs.addTab(self._build_gpu_tab(), "GPU-Monitor")
-        self.tabs.addTab(self._build_cpu_tab(), "CPU && System")
-        self.tabs.addTab(self._build_theme_tab(), "Design && Themes")
-        self.tabs.addTab(self._build_about_tab(), "Über")
+        self.tabs.addTab(self._wrap_in_scroll(self._build_general_tab()), "Allgemein")
+        self.tabs.addTab(self._wrap_in_scroll(self._build_display_tab()), "Anzeige")
+        self.tabs.addTab(self._wrap_in_scroll(self._build_clock_tab()), "Uhrzeit && Datum")
+        self.tabs.addTab(self._wrap_in_scroll(self._build_gpu_tab()), "GPU-Monitor")
+        self.tabs.addTab(self._wrap_in_scroll(self._build_cpu_tab()), "CPU && System")
+        self.tabs.addTab(self._wrap_in_scroll(self._build_theme_tab()), "Design && Themes")
+        self.tabs.addTab(self._wrap_in_scroll(self._build_about_tab()), "Über")
 
         # Action Buttons
         btn_row = QHBoxLayout()
@@ -328,14 +372,9 @@ class SettingsDialog(QDialog):
         root.addLayout(btn_row)
 
     def _build_general_tab(self) -> QWidget:
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.Shape.NoFrame)
-
         tab = QWidget()
         layout = QVBoxLayout(tab)
         layout.setSpacing(10)
-        scroll.setWidget(tab)
 
         # Autostart (aligned with TrafficBox)
         grp_auto = QGroupBox("Systemstart && Autostart")
@@ -362,32 +401,44 @@ class SettingsDialog(QDialog):
         layout.addWidget(grp_win)
 
         layout.addStretch(1)
-        return scroll
+        return tab
 
     def _build_display_tab(self) -> QWidget:
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.Shape.NoFrame)
-
         tab = QWidget()
         layout = QVBoxLayout(tab)
         layout.setSpacing(10)
-        scroll.setWidget(tab)
 
         # Global appearance
         grp_global = QGroupBox("Globale Darstellung")
         form = QFormLayout(grp_global)
 
         scale_row = QHBoxLayout()
+        # Discrete 5% steps (14..60 -> 70%..300%) aligned with TrafficBox
         self.sld_scale = QSlider(Qt.Orientation.Horizontal)
-        self.sld_scale.setRange(70, 300)
-        self.sld_scale.setSingleStep(5)
-        self.lbl_scale_val = QLabel("100%")
-        self.lbl_scale_val.setMinimumWidth(48)
-        self.sld_scale.valueChanged.connect(lambda v: self.lbl_scale_val.setText(f"{v}%"))
+        self.sld_scale.setRange(14, 60)
+        self.sld_scale.setSingleStep(1)
+        self.sld_scale.setPageStep(5)
+        self.sld_scale.setTickPosition(QSlider.TickPosition.TicksBelow)
+        self.sld_scale.setTickInterval(5)
+
+        self.spn_scale = QSpinBox()
+        self.spn_scale.setRange(70, 300)
+        self.spn_scale.setSingleStep(5)
+        self.spn_scale.setSuffix("%")
+
+        self.sld_scale.valueChanged.connect(lambda v: self.spn_scale.setValue(v * 5))
+        self.spn_scale.valueChanged.connect(
+            lambda v: self.sld_scale.setValue(max(14, min(60, int(round(v / 5.0)))))
+        )
+
+        btn_scale_100 = QPushButton("100% (Standard)")
+        btn_scale_100.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_scale_100.clicked.connect(lambda: self.spn_scale.setValue(100))
+
         scale_row.addWidget(self.sld_scale, 1)
-        scale_row.addWidget(self.lbl_scale_val)
-        form.addRow("Globale Skalierung:", scale_row)
+        scale_row.addWidget(self.spn_scale, 0)
+        scale_row.addWidget(btn_scale_100, 0)
+        form.addRow("UI-Skalierung:", scale_row)
 
         op_row = QHBoxLayout()
         self.sld_opacity = QSlider(Qt.Orientation.Horizontal)
@@ -410,6 +461,7 @@ class SettingsDialog(QDialog):
             chk_en = QCheckBox("Aktiv")
             spn_sc = QSpinBox()
             spn_sc.setRange(0, 300)
+            spn_sc.setSingleStep(5)
             spn_sc.setSpecialValueText("Global")
             spn_sc.setSuffix("%")
             spn_sc.setToolTip("Individuelle Skalierung (0 = Global übernehmen)")
@@ -437,7 +489,7 @@ class SettingsDialog(QDialog):
         layout.addWidget(grp_poll)
 
         layout.addStretch(1)
-        return scroll
+        return tab
 
     def _build_clock_tab(self) -> QWidget:
         tab = QWidget()
@@ -476,7 +528,7 @@ class SettingsDialog(QDialog):
 
         self.spn_vram_warn = QSpinBox()
         self.spn_vram_warn.setRange(50, 99)
-        self.spn_vram_warn.setSuffix(" %")
+        self.spn_vram_warn.setSuffix("%")
         g_form.addRow("VRAM-Warnschwelle:", self.spn_vram_warn)
         layout.addWidget(grp_gpu)
         layout.addStretch(1)
@@ -663,7 +715,7 @@ class SettingsDialog(QDialog):
     def _load_from_config(self) -> None:
         self.chk_autostart.setChecked(is_autostart_enabled() or self.config.autostart)
         self.spn_start_delay.setValue(self.config.start_delay_sec)
-        self.sld_scale.setValue(self.config.ui_scale_percent)
+        self.spn_scale.setValue(self.config.ui_scale_percent)
         self.sld_opacity.setValue(self.config.opacity)
         self.chk_always_on_top.setChecked(self.config.always_on_top)
         self.chk_locked_pos.setChecked(self.config.locked_pos)
@@ -698,7 +750,7 @@ class SettingsDialog(QDialog):
         self.config.autostart = self.chk_autostart.isChecked()
         self.config.start_delay_sec = self.spn_start_delay.value()
         set_autostart(self.config.autostart)
-        self.config.ui_scale_percent = self.sld_scale.value()
+        self.config.ui_scale_percent = self.spn_scale.value()
         self.config.opacity = self.sld_opacity.value()
         self.config.always_on_top = self.chk_always_on_top.isChecked()
         self.config.locked_pos = self.chk_locked_pos.isChecked()
@@ -752,7 +804,7 @@ class SettingsDialog(QDialog):
         defaults = AppConfig()
         self.chk_autostart.setChecked(defaults.autostart)
         self.spn_start_delay.setValue(defaults.start_delay_sec)
-        self.sld_scale.setValue(defaults.ui_scale_percent)
+        self.spn_scale.setValue(defaults.ui_scale_percent)
         self.sld_opacity.setValue(defaults.opacity)
         self.chk_always_on_top.setChecked(defaults.always_on_top)
         self.chk_locked_pos.setChecked(defaults.locked_pos)

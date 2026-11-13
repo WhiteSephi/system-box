@@ -4,6 +4,12 @@ Alle relevanten Änderungen an diesem Projekt werden in dieser Datei dokumentier
 Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/),
 und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 
+## [0.8.1] - 2026-11-13
+### Changed
+- **Einstellungen-Feinschliff (`src/ui/settings_dlg.py`):**
+  - `UI-Skalierung` mit diskreten 5%-Stufen (Slider `14..60`, Tickmarks), `SpinBox` (`70–300%`) und `100% (Standard)`-Button an TrafficBox angeglichen; Einzel-Widget-Skalierung ebenfalls mit `5%`-Schritten.
+  - Alle 7 Tabs in `QScrollArea` (`_wrap_in_scroll`) eingewickelt sowie Monitor-Bounds-Prüfung (`_restore_geometry`) und Geometrie-Speicherung bei `closeEvent`/`hideEvent` ergänzt.
+
 ## [0.8.0] - 2026-11-13
 ### Added
 - **Neuer Tab `Anzeige` (`src/ui/settings_dlg.py`):** Globale Skalierung, Deckkraft, einzelne Desktop-Widgets sowie Abfrage/Verlauf in einen eigenen `Anzeige`-Tab ausgelagert; `Allgemein` enthält nun einheitlich `Systemstart & Autostart` und `Fenster-Verhalten & Position`.
