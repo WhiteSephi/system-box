@@ -4,6 +4,14 @@ Alle relevanten Änderungen an diesem Projekt werden in dieser Datei dokumentier
 Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/),
 und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 
+## [0.8.0] - 2026-11-13
+### Added
+- **Neuer Tab `Anzeige` (`src/ui/settings_dlg.py`):** Globale Skalierung, Deckkraft, einzelne Desktop-Widgets sowie Abfrage/Verlauf in einen eigenen `Anzeige`-Tab ausgelagert; `Allgemein` enthält nun einheitlich `Systemstart & Autostart` und `Fenster-Verhalten & Position`.
+- **`Reset (Standardwerte)`:** Button zum Zurücksetzen aller Einstellungen auf die `AppConfig`-Standardwerte ergänzt.
+
+### Changed
+- **Farben & Themes an TrafficBox angeglichen:** `ModernColorPickerPopup` (Palette-Grid, Live-Hex-Eingabe + erweiterter System-Farbwähler) und 2-Spalten-Layout (`Graphen & Metriken` | `Widget Design`) übernommen.
+
 ## [0.7.8] - 2026-11-13
 ### Fixed
 - **Live-Resize-Neuberechnung (`src/ui/gpu_widget.py`):** Breite in `_apply_row2_responsive()` direkt aus `self.width()` statt verzögertem `_sec_temp.width()` berechnet und `_fan_box` mit `QSizePolicy.Fixed` + `invalidate()` versehen, sodass beim Verkleinern nichts mehr abgeschnitten wird.

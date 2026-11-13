@@ -7,7 +7,7 @@ import platform
 import sys
 
 from PySide6.QtCore import Qt, QUrl, qVersion
-from PySide6.QtGui import QColor, QDesktopServices
+from PySide6.QtGui import QColor, QDesktopServices, QIcon, QPainter, QPixmap
 from PySide6.QtWidgets import (
     QCheckBox,
     QColorDialog,
@@ -15,9 +15,12 @@ from PySide6.QtWidgets import (
     QDialog,
     QFormLayout,
     QFrame,
+    QGridLayout,
     QGroupBox,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
+    QMessageBox,
     QPushButton,
     QScrollArea,
     QSlider,
@@ -35,15 +38,191 @@ from src.themes import THEMES
 from src.ui.tray import create_systembox_icon
 
 
+def make_swatch_icon(hex_color: str, size: int = 16) -> QIcon:
+    """Generate a clean rounded color chip icon."""
+    pix = QPixmap(size, size)
+    pix.fill(Qt.GlobalColor.transparent)
+    painter = QPainter(pix)
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+    painter.setBrush(QColor(hex_color))
+    painter.setPen(QColor("#FFFFFF" if QColor(hex_color).lightness() < 60 else "#222222"))
+    painter.drawRoundedRect(1, 1, size - 2, size - 2, 4, 4)
+    painter.end()
+    return QIcon(pix)
+
+
+class ModernColorPickerPopup(QDialog):
+    """Modern dark-themed color picker popup with curated palette and hex input."""
+
+    PALETTE = [
+        ["#00E5FF", "#00E676", "#FFEA00", "#FF9100", "#FF1744", "#FF007F"],
+        ["#3D5AFE", "#7C4DFF", "#00B0FF", "#1DE9B6", "#76FF03", "#FFD600"],
+        ["#80D8FF", "#A7FFEB", "#CCFF90", "#FFE57F", "#FF8A80", "#EA80FC"],
+        ["#FFFFFF", "#CFD8DC", "#78909C", "#455A64", "#263238", "#121212"],
+    ]
+
+    def __init__(
+        self,
+        current_hex: str,
+        on_chosen: Callable[[str], None],
+        parent: QWidget | None = None,
+    ) -> None:
+        super().__init__(parent, Qt.WindowType.Popup)
+        self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+        self.on_chosen = on_chosen
+
+        self.setStyleSheet("""
+            QDialog {
+                background-color: #1A1E24;
+                border: 1px solid #3E4652;
+                border-radius: 8px;
+            }
+            QLabel {
+                color: #E0E4E8;
+                font-size: 8.5pt;
+            }
+            QLineEdit {
+                background-color: #262C36;
+                color: #FFFFFF;
+                border: 1px solid #444D5A;
+                border-radius: 4px;
+                padding: 4px 6px;
+                font-family: monospace;
+                font-weight: bold;
+                font-size: 8.5pt;
+            }
+            QLineEdit:focus {
+                border-color: #00E5FF;
+            }
+        """)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(8)
+
+        lbl_title = QLabel("Farbe wählen")
+        lbl_title.setStyleSheet("font-weight: bold; font-size: 9pt; color: #FFFFFF;")
+        layout.addWidget(lbl_title)
+
+        grid = QGridLayout()
+        grid.setSpacing(5)
+        for r, row in enumerate(self.PALETTE):
+            for c, hex_code in enumerate(row):
+                btn = QPushButton()
+                btn.setFixedSize(26, 26)
+                btn.setCursor(Qt.CursorShape.PointingHandCursor)
+                btn.setToolTip(hex_code)
+                is_curr = hex_code.lower() == current_hex.lower()
+                border = "2px solid #FFFFFF" if is_curr else "1px solid rgba(255,255,255,0.2)"
+                btn.setStyleSheet(f"""
+                    QPushButton {{
+                        background-color: {hex_code};
+                        border: {border};
+                        border-radius: 4px;
+                    }}
+                    QPushButton:hover {{
+                        border: 2px solid #00E5FF;
+                    }}
+                """)
+                btn.clicked.connect(lambda _, h=hex_code: self._select_and_close(h))
+                grid.addWidget(btn, r, c)
+        layout.addLayout(grid)
+
+        hex_row = QHBoxLayout()
+        hex_row.setSpacing(6)
+        lbl_hex = QLabel("Hex:")
+        self.txt_hex = QLineEdit(current_hex)
+        self.txt_hex.setMaxLength(9)
+
+        self.lbl_swatch_preview = QLabel()
+        self.lbl_swatch_preview.setFixedSize(22, 22)
+        self._update_preview_swatch(current_hex)
+
+        self.txt_hex.textChanged.connect(self._on_hex_text_changed)
+        self.txt_hex.returnPressed.connect(lambda: self._select_and_close(self.txt_hex.text()))
+
+        btn_ok = QPushButton("✓")
+        btn_ok.setFixedSize(26, 26)
+        btn_ok.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_ok.setStyleSheet("""
+            QPushButton {
+                background-color: #2D3748;
+                color: #00E5FF;
+                border: 1px solid #4A5568;
+                border-radius: 4px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #3A475C;
+                border-color: #00E5FF;
+            }
+        """)
+        btn_ok.clicked.connect(lambda: self._select_and_close(self.txt_hex.text()))
+
+        hex_row.addWidget(lbl_hex)
+        hex_row.addWidget(self.lbl_swatch_preview)
+        hex_row.addWidget(self.txt_hex, 1)
+        hex_row.addWidget(btn_ok)
+        layout.addLayout(hex_row)
+
+        btn_sys = QPushButton("🎨 Erweiterte Farbauswahl…")
+        btn_sys.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_sys.setStyleSheet("""
+            QPushButton {
+                background: transparent;
+                border: none;
+                color: #8E9297;
+                font-size: 8pt;
+                text-decoration: underline;
+                padding-top: 2px;
+            }
+            QPushButton:hover {
+                color: #00E5FF;
+            }
+        """)
+        btn_sys.clicked.connect(self._open_system_picker)
+        layout.addWidget(btn_sys)
+
+    def _update_preview_swatch(self, hex_code: str) -> None:
+        if not hex_code.startswith("#"):
+            hex_code = "#" + hex_code
+        col = QColor(hex_code)
+        if col.isValid():
+            self.lbl_swatch_preview.setStyleSheet(
+                f"background-color: {col.name()}; border: 1px solid #666; border-radius: 3px;"
+            )
+
+    def _on_hex_text_changed(self, text: str) -> None:
+        self._update_preview_swatch(text.strip())
+
+    def _select_and_close(self, hex_val: str) -> None:
+        hex_val = hex_val.strip()
+        if not hex_val.startswith("#"):
+            hex_val = "#" + hex_val
+        col = QColor(hex_val)
+        if col.isValid():
+            self.on_chosen(col.name().upper())
+            self.close()
+
+    def _open_system_picker(self) -> None:
+        init_col = QColor(self.txt_hex.text().strip())
+        if not init_col.isValid():
+            init_col = QColor("#00E5FF")
+        chosen = QColorDialog.getColor(init_col, self, "Erweiterte Farbe wählen")
+        if chosen.isValid():
+            self.on_chosen(chosen.name().upper())
+            self.close()
+
+
 class ColorButton(QPushButton):
-    """Compact button displaying a color swatch and opening QColorDialog on click."""
+    """Compact button displaying a color swatch and opening ModernColorPickerPopup."""
 
     def __init__(self, hex_color: str, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._hex_color = hex_color
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setFixedHeight(26)
-        self.setMinimumWidth(96)
+        self.setMinimumWidth(110)
         self.clicked.connect(self._pick_color)
         self._update_style()
 
@@ -57,18 +236,36 @@ class ColorButton(QPushButton):
         self._update_style()
 
     def _update_style(self) -> None:
-        col = QColor(self._hex_color)
-        text_col = "#000000" if col.lightness() > 140 else "#FFFFFF"
-        self.setText(self._hex_color.upper())
+        self.setIcon(make_swatch_icon(self._hex_color, 16))
+        self.setText(f" {self._hex_color.upper()}")
         self.setStyleSheet(
-            f"background-color: {self._hex_color}; color: {text_col}; "
-            "border: 1px solid #5E616C; border-radius: 4px; font-weight: bold;"
+            """
+            QPushButton {
+                background-color: #2A2F38;
+                color: #E0E4E8;
+                border: 1px solid #444D5A;
+                border-radius: 5px;
+                padding: 3px 8px;
+                text-align: left;
+                font-family: monospace;
+                font-weight: bold;
+                font-size: 8.5pt;
+            }
+            QPushButton:hover {
+                border-color: #00E5FF;
+                background-color: #323842;
+            }
+            """
         )
 
     def _pick_color(self) -> None:
-        chosen = QColorDialog.getColor(QColor(self._hex_color), self, "Farbe wählen")
-        if chosen.isValid():
-            self.hex_color = chosen.name().upper()
+        popup = ModernColorPickerPopup(self._hex_color, self._on_color_chosen, self)
+        pos = self.mapToGlobal(self.rect().bottomLeft())
+        popup.move(pos.x(), pos.y() + 4)
+        popup.exec()
+
+    def _on_color_chosen(self, hex_val: str) -> None:
+        self.hex_color = hex_val
 
 
 class SettingsDialog(QDialog):
@@ -105,6 +302,7 @@ class SettingsDialog(QDialog):
         root.addWidget(self.tabs, 1)
 
         self.tabs.addTab(self._build_general_tab(), "Allgemein")
+        self.tabs.addTab(self._build_display_tab(), "Anzeige")
         self.tabs.addTab(self._build_clock_tab(), "Uhrzeit && Datum")
         self.tabs.addTab(self._build_gpu_tab(), "GPU-Monitor")
         self.tabs.addTab(self._build_cpu_tab(), "CPU && System")
@@ -113,6 +311,9 @@ class SettingsDialog(QDialog):
 
         # Action Buttons
         btn_row = QHBoxLayout()
+        btn_reset = QPushButton("Reset (Standardwerte)")
+        btn_reset.clicked.connect(self._reset_defaults)
+        btn_row.addWidget(btn_reset)
         btn_row.addStretch(1)
         btn_apply = QPushButton("Übernehmen")
         btn_apply.clicked.connect(self._apply_changes)
@@ -148,17 +349,42 @@ class SettingsDialog(QDialog):
         a_form.addRow("Startverzögerung beim Booten:", self.spn_start_delay)
         layout.addWidget(grp_auto)
 
+        # Window behavior & position (aligned with TrafficBox)
+        grp_win = QGroupBox("Fenster-Verhalten && Position")
+        w_lay = QVBoxLayout(grp_win)
+        w_lay.setSpacing(6)
+        self.chk_always_on_top = QCheckBox("Alle Widgets immer im Vordergrund halten")
+        self.chk_locked_pos = QCheckBox("Positionen aller Widgets sperren")
+        self.chk_snap_edges = QCheckBox("Magnetisches Einrasten an Bildschirmrändern && Widgets")
+        w_lay.addWidget(self.chk_always_on_top)
+        w_lay.addWidget(self.chk_locked_pos)
+        w_lay.addWidget(self.chk_snap_edges)
+        layout.addWidget(grp_win)
+
+        layout.addStretch(1)
+        return scroll
+
+    def _build_display_tab(self) -> QWidget:
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setSpacing(10)
+        scroll.setWidget(tab)
+
         # Global appearance
-        grp_global = QGroupBox("Globale Darstellung && Verhalten")
+        grp_global = QGroupBox("Globale Darstellung")
         form = QFormLayout(grp_global)
 
         scale_row = QHBoxLayout()
         self.sld_scale = QSlider(Qt.Orientation.Horizontal)
         self.sld_scale.setRange(70, 300)
         self.sld_scale.setSingleStep(5)
-        self.lbl_scale_val = QLabel("100 %")
+        self.lbl_scale_val = QLabel("100%")
         self.lbl_scale_val.setMinimumWidth(48)
-        self.sld_scale.valueChanged.connect(lambda v: self.lbl_scale_val.setText(f"{v} %"))
+        self.sld_scale.valueChanged.connect(lambda v: self.lbl_scale_val.setText(f"{v}%"))
         scale_row.addWidget(self.sld_scale, 1)
         scale_row.addWidget(self.lbl_scale_val)
         form.addRow("Globale Skalierung:", scale_row)
@@ -166,19 +392,12 @@ class SettingsDialog(QDialog):
         op_row = QHBoxLayout()
         self.sld_opacity = QSlider(Qt.Orientation.Horizontal)
         self.sld_opacity.setRange(20, 100)
-        self.lbl_opacity_val = QLabel("85 %")
+        self.lbl_opacity_val = QLabel("85%")
         self.lbl_opacity_val.setMinimumWidth(48)
-        self.sld_opacity.valueChanged.connect(lambda v: self.lbl_opacity_val.setText(f"{v} %"))
+        self.sld_opacity.valueChanged.connect(lambda v: self.lbl_opacity_val.setText(f"{v}%"))
         op_row.addWidget(self.sld_opacity, 1)
         op_row.addWidget(self.lbl_opacity_val)
         form.addRow("Deckkraft:", op_row)
-
-        self.chk_always_on_top = QCheckBox("Alle Widgets immer im Vordergrund halten")
-        self.chk_locked_pos = QCheckBox("Positionen aller Widgets sperren")
-        self.chk_snap_edges = QCheckBox("Magnetisches Einrasten an Bildschirmrändern && Widgets")
-        form.addRow("", self.chk_always_on_top)
-        form.addRow("", self.chk_locked_pos)
-        form.addRow("", self.chk_snap_edges)
         layout.addWidget(grp_global)
 
         # Per-widget toggles & scaling
@@ -192,7 +411,7 @@ class SettingsDialog(QDialog):
             spn_sc = QSpinBox()
             spn_sc.setRange(0, 300)
             spn_sc.setSpecialValueText("Global")
-            spn_sc.setSuffix(" %")
+            spn_sc.setSuffix("%")
             spn_sc.setToolTip("Individuelle Skalierung (0 = Global übernehmen)")
             row.addWidget(chk_en)
             row.addStretch(1)
@@ -285,40 +504,52 @@ class SettingsDialog(QDialog):
         layout = QVBoxLayout(tab)
         layout.setSpacing(10)
 
-        grp_preset = QGroupBox("Theme-Schnellauswahl (wie TrafficBox)")
+        grp_preset = QGroupBox("Theme-Schnellauswahl (Farb-Vorlagen)")
         p_row = QHBoxLayout(grp_preset)
         self.cmb_theme = QComboBox()
         self.cmb_theme.addItems(list(THEMES.keys()))
         btn_theme = QPushButton("Theme anwenden")
+        btn_theme.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_theme.clicked.connect(self._apply_preset_theme)
         p_row.addWidget(QLabel("Vorlage:"))
         p_row.addWidget(self.cmb_theme, 1)
         p_row.addWidget(btn_theme)
         layout.addWidget(grp_preset)
 
-        grp_colors = QGroupBox("Individuelle Farben")
-        c_form = QFormLayout(grp_colors)
+        colors_row = QHBoxLayout()
+        colors_row.setSpacing(10)
+
+        grp_metrics = QGroupBox("Graphen && Metriken")
+        m_form = QFormLayout(grp_metrics)
+        m_form.setContentsMargins(10, 10, 10, 10)
+        m_form.setVerticalSpacing(6)
         self.btn_col_primary = ColorButton(self.config.primary_color)
         self.btn_col_secondary = ColorButton(self.config.secondary_color)
         self.btn_col_temp = ColorButton(self.config.temp_color)
         self.btn_col_vram = ColorButton(self.config.vram_color)
+        m_form.addRow("Primär-Graph (GPU/CPU):", self.btn_col_primary)
+        m_form.addRow("Sekundär-Graph (RAM):", self.btn_col_secondary)
+        m_form.addRow("Temperatur / Warnung:", self.btn_col_temp)
+        m_form.addRow("VRAM / Disk / Wochentag:", self.btn_col_vram)
+        colors_row.addWidget(grp_metrics)
+
+        grp_design = QGroupBox("Widget Design")
+        d_form = QFormLayout(grp_design)
+        d_form.setContentsMargins(10, 10, 10, 10)
+        d_form.setVerticalSpacing(6)
         self.btn_col_bg = ColorButton(self.config.background_color)
         self.btn_col_border = ColorButton(self.config.border_color)
         self.btn_col_grid = ColorButton(self.config.grid_color)
         self.btn_col_title = ColorButton(self.config.title_color)
         self.btn_col_muted = ColorButton(self.config.muted_color)
+        d_form.addRow("Hintergrund:", self.btn_col_bg)
+        d_form.addRow("Rahmen:", self.btn_col_border)
+        d_form.addRow("Raster (Grid):", self.btn_col_grid)
+        d_form.addRow("Titelfarbe:", self.btn_col_title)
+        d_form.addRow("Sekundärtext:", self.btn_col_muted)
+        colors_row.addWidget(grp_design)
 
-        c_form.addRow("Primär-Graph (GPU/CPU):", self.btn_col_primary)
-        c_form.addRow("Sekundär-Graph (RAM):", self.btn_col_secondary)
-        c_form.addRow("Temperatur / Warnung / Monat:", self.btn_col_temp)
-        c_form.addRow("VRAM / Disk / Wochentag:", self.btn_col_vram)
-        c_form.addRow("Hintergrund:", self.btn_col_bg)
-        c_form.addRow("Rahmen:", self.btn_col_border)
-        c_form.addRow("Raster (Grid):", self.btn_col_grid)
-        c_form.addRow("Titel & Hauptwerte:", self.btn_col_title)
-        c_form.addRow("Sekundärtext:", self.btn_col_muted)
-        layout.addWidget(grp_colors)
-
+        layout.addLayout(colors_row)
         layout.addStretch(1)
         return tab
 
@@ -507,6 +738,51 @@ class SettingsDialog(QDialog):
         self.config.settings_width = self.width()
         self.config.settings_height = self.height()
         self.config.save()
+
+    def _reset_defaults(self) -> None:
+        reply = QMessageBox.question(
+            self,
+            "Standardwerte wiederherstellen",
+            "Möchtest du alle Einstellungen auf die Standardwerte zurücksetzen?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+        defaults = AppConfig()
+        self.chk_autostart.setChecked(defaults.autostart)
+        self.spn_start_delay.setValue(defaults.start_delay_sec)
+        self.sld_scale.setValue(defaults.ui_scale_percent)
+        self.sld_opacity.setValue(defaults.opacity)
+        self.chk_always_on_top.setChecked(defaults.always_on_top)
+        self.chk_locked_pos.setChecked(defaults.locked_pos)
+        self.chk_snap_edges.setChecked(defaults.snap_to_edges)
+        for key, (chk_en, spn_sc) in self._widget_checks.items():
+            wc = defaults.get_widget(key)
+            chk_en.setChecked(wc.enabled)
+            spn_sc.setValue(wc.scale_percent if wc.scale_percent is not None else 0)
+        self.spn_interval.setValue(defaults.refresh_interval_ms)
+        self.spn_history.setValue(defaults.history_seconds)
+        self.chk_gpu_power_fan.setChecked(defaults.gpu_show_power_fan)
+        self.spn_vram_warn.setValue(defaults.gpu_vram_warn_percent)
+        self.chk_cpu_max_core.setChecked(defaults.cpu_show_max_core)
+        self.chk_cpu_page_faults.setChecked(defaults.cpu_show_page_faults)
+        self.chk_cpu_disk.setChecked(defaults.cpu_show_disk_io)
+        self.chk_clock_sec.setChecked(defaults.clock_show_seconds)
+        self.chk_clock_uptime.setChecked(defaults.clock_show_uptime)
+        self.chk_clock_24h.setChecked(defaults.clock_24h)
+        t_idx = self.cmb_theme.findText(defaults.theme_name)
+        if t_idx >= 0:
+            self.cmb_theme.setCurrentIndex(t_idx)
+        self.btn_col_primary.hex_color = defaults.primary_color
+        self.btn_col_secondary.hex_color = defaults.secondary_color
+        self.btn_col_temp.hex_color = defaults.temp_color
+        self.btn_col_vram.hex_color = defaults.vram_color
+        self.btn_col_bg.hex_color = defaults.background_color
+        self.btn_col_border.hex_color = defaults.border_color
+        self.btn_col_grid.hex_color = defaults.grid_color
+        self.btn_col_title.hex_color = defaults.title_color
+        self.btn_col_muted.hex_color = defaults.muted_color
 
     def _apply_changes(self) -> None:
         self._save_to_config()
