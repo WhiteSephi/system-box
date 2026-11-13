@@ -14,6 +14,7 @@ class GpuInfo:
     vendor: str = "unknown"  # "nvidia", "amd", "intel", "unknown"
     backend: str = "none"  # "nvml", "sysfs", "pdh", "none"
     vram_total_mb: float | None = None
+    driver_version: str | None = None
 
 
 @dataclass(slots=True)
@@ -35,6 +36,7 @@ class GpuSample:
     vram_total_mb: float | None = None
     power_watts: float | None = None
     power_limit_watts: float | None = None
+    driver_version: str | None = None
     throttle_reasons: list[str] = field(default_factory=list)
 
 

@@ -72,6 +72,7 @@ class GpuWidget(BaseDesktopWidget):
         hdr = QHBoxLayout()
         hdr.setSpacing(6)
         self.lbl_title = QLabel("GPU")
+        self.lbl_title.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         self.lbl_throttle = QLabel("")
         self.lbl_throttle.setVisible(False)
         self.btn_settings = self.create_gear_button()
@@ -281,7 +282,12 @@ class GpuWidget(BaseDesktopWidget):
         """Render the latest GPU telemetry sample."""
         gpu = snapshot.active_gpu
         self._last_gpu = gpu
-        self.lbl_title.setText(gpu.name)
+        if self.config.gpu_show_driver_version and gpu.driver_version:
+            self.lbl_title.setText(f"{gpu.name} (v{gpu.driver_version})")
+            self.lbl_title.setToolTip(f"{gpu.name} · Treiber {gpu.driver_version}")
+        else:
+            self.lbl_title.setText(gpu.name)
+            self.lbl_title.setToolTip("")
 
         if not gpu.available:
             self.lbl_util.setText("GPU: nicht verfügbar")
@@ -340,15 +346,17 @@ class GpuWidget(BaseDesktopWidget):
         self._apply_row2_responsive()
 
         vram_pct = 0.0
+        mem_clk_txt = f"{gpu.mem_clock_mhz} MHz" if (self.config.gpu_show_mem_clock and gpu.mem_clock_mhz is not None) else ""
         if gpu.vram_used_mb is not None and gpu.vram_total_mb:
             vram_pct = (gpu.vram_used_mb / gpu.vram_total_mb) * 100.0
             self.lbl_vram_used.setText(f"VRAM: {gpu.vram_used_mb / 1024.0:.1f} GB ({vram_pct:.0f}%)")
-            self.lbl_vram_total.setText(f"{gpu.vram_total_mb / 1024.0:.1f} GB")
+            total_txt = f"{gpu.vram_total_mb / 1024.0:.1f} GB"
+            self.lbl_vram_total.setText(f"{mem_clk_txt} · {total_txt}" if mem_clk_txt else total_txt)
             self.graph_vram.set_colors(self.config.vram_color, self.config.grid_color)
             self.graph_vram.push_value(vram_pct, 100.0)
         elif gpu.vram_used_mb is not None:
             self.lbl_vram_used.setText(f"VRAM: {gpu.vram_used_mb:.0f} MB")
-            self.lbl_vram_total.setText("")
+            self.lbl_vram_total.setText(mem_clk_txt)
         else:
             self.lbl_vram_used.setText("VRAM: --")
-            self.lbl_vram_total.setText("")
+            self.lbl_vram_total.setText(mem_clk_txt)

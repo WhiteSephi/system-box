@@ -216,3 +216,37 @@ def test_gpu_temp_warning_badge() -> None:
     assert gpu.lbl_throttle.isVisibleTo(gpu)
     assert "TEMP 84°C" in gpu.lbl_throttle.text()
     gpu.close()
+
+
+def test_gpu_optional_mem_clock_and_driver_version() -> None:
+    app = _ensure_qapp()
+    cfg = AppConfig()
+    assert cfg.gpu_show_mem_clock is False
+    assert cfg.gpu_show_driver_version is False
+
+    gpu = GpuWidget(cfg)
+    snap = SystemSnapshot(
+        cpu=CpuSystemSample(0, 0, 0, None, 0, 0, 0, 0, 0, 0, 0),
+        active_gpu=GpuSample(
+            index=0,
+            name="Generic Test GPU",
+            vendor="nvidia",
+            available=True,
+            mem_clock_mhz=10501,
+            vram_used_mb=4096.0,
+            vram_total_mb=16384.0,
+            driver_version="560.94",
+        ),
+    )
+    gpu.update_snapshot(snap)
+    app.processEvents()
+    assert gpu.lbl_title.text() == "Generic Test GPU"
+    assert gpu.lbl_vram_total.text() == "16.0 GB"
+
+    cfg.gpu_show_mem_clock = True
+    cfg.gpu_show_driver_version = True
+    gpu.update_snapshot(snap)
+    app.processEvents()
+    assert gpu.lbl_title.text() == "Generic Test GPU (v560.94)"
+    assert gpu.lbl_vram_total.text() == "10501 MHz · 16.0 GB"
+    gpu.close()

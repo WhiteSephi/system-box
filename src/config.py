@@ -110,6 +110,8 @@ class AppConfig:
     cpu_show_disk_io: bool = True
     cpu_show_page_faults: bool = False
     gpu_show_power_fan: bool = True
+    gpu_show_mem_clock: bool = False
+    gpu_show_driver_version: bool = False
     gpu_temp_warn_c: int = 80
 
     # Theme & Colors

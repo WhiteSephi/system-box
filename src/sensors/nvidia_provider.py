@@ -25,6 +25,12 @@ class NvidiaGpuProvider(GpuProvider):
         try:
             pynvml.nvmlInit()
             self._initialized = True
+            driver_version: str | None = None
+            try:
+                raw_drv = pynvml.nvmlSystemGetDriverVersion()
+                driver_version = raw_drv.decode("utf-8", errors="replace") if isinstance(raw_drv, bytes) else str(raw_drv)
+            except Exception:
+                pass
             count = int(pynvml.nvmlDeviceGetCount())
             for idx in range(count):
                 handle = pynvml.nvmlDeviceGetHandleByIndex(idx)
@@ -43,6 +49,7 @@ class NvidiaGpuProvider(GpuProvider):
                         vendor="nvidia",
                         backend="nvml",
                         vram_total_mb=vram_total_mb,
+                        driver_version=driver_version,
                     )
                 )
         except Exception:
@@ -167,6 +174,7 @@ class NvidiaGpuProvider(GpuProvider):
             vram_total_mb=vram_total_mb,
             power_watts=power_watts,
             power_limit_watts=power_limit_watts,
+            driver_version=info.driver_version,
             throttle_reasons=throttle_reasons,
         )
 

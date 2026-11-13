@@ -545,6 +545,12 @@ class SettingsDialog(QDialog):
         self.chk_gpu_power_fan = QCheckBox("Lüfter (RPM/%) und Leistungsaufnahme (Watt) anzeigen")
         g_form.addRow("", self.chk_gpu_power_fan)
 
+        self.chk_gpu_mem_clock = QCheckBox("VRAM-Takt (MHz) anzeigen")
+        g_form.addRow("", self.chk_gpu_mem_clock)
+
+        self.chk_gpu_driver = QCheckBox("Treiberversion im Header anzeigen")
+        g_form.addRow("", self.chk_gpu_driver)
+
         self.spn_temp_warn = QSpinBox()
         self.spn_temp_warn.setRange(50, 105)
         self.spn_temp_warn.setSuffix(" °C")
@@ -753,6 +759,8 @@ class SettingsDialog(QDialog):
             self.cmb_gpu.setCurrentIndex(idx)
 
         self.chk_gpu_power_fan.setChecked(self.config.gpu_show_power_fan)
+        self.chk_gpu_mem_clock.setChecked(self.config.gpu_show_mem_clock)
+        self.chk_gpu_driver.setChecked(self.config.gpu_show_driver_version)
         self.spn_temp_warn.setValue(self.config.gpu_temp_warn_c)
         self.chk_cpu_max_core.setChecked(self.config.cpu_show_max_core)
         self.chk_cpu_page_faults.setChecked(self.config.cpu_show_page_faults)
@@ -785,6 +793,8 @@ class SettingsDialog(QDialog):
         self.config.history_seconds = self.spn_history.value()
         self.config.selected_gpu_index = int(self.cmb_gpu.currentData() or 0)
         self.config.gpu_show_power_fan = self.chk_gpu_power_fan.isChecked()
+        self.config.gpu_show_mem_clock = self.chk_gpu_mem_clock.isChecked()
+        self.config.gpu_show_driver_version = self.chk_gpu_driver.isChecked()
         self.config.gpu_temp_warn_c = self.spn_temp_warn.value()
         self.config.cpu_show_max_core = self.chk_cpu_max_core.isChecked()
         self.config.cpu_show_page_faults = self.chk_cpu_page_faults.isChecked()
@@ -835,6 +845,8 @@ class SettingsDialog(QDialog):
         self.spn_interval.setValue(defaults.refresh_interval_ms)
         self.spn_history.setValue(defaults.history_seconds)
         self.chk_gpu_power_fan.setChecked(defaults.gpu_show_power_fan)
+        self.chk_gpu_mem_clock.setChecked(defaults.gpu_show_mem_clock)
+        self.chk_gpu_driver.setChecked(defaults.gpu_show_driver_version)
         self.spn_temp_warn.setValue(defaults.gpu_temp_warn_c)
         self.chk_cpu_max_core.setChecked(defaults.cpu_show_max_core)
         self.chk_cpu_page_faults.setChecked(defaults.cpu_show_page_faults)

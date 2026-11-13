@@ -115,6 +115,7 @@ class LinuxDrmGpuProvider(GpuProvider):
         fan_rpm: int | None = None
         power_watts: float | None = None
         clock_mhz: int | None = None
+        mem_clock_mhz: int | None = None
 
         hwmon_base = dev / "hwmon"
         if hwmon_base.is_dir():
@@ -131,6 +132,9 @@ class LinuxDrmGpuProvider(GpuProvider):
                 freq_raw = _read_int(hw_dir / "freq1_input")
                 if freq_raw is not None and clock_mhz is None:
                     clock_mhz = int(round(freq_raw / 1_000_000.0))
+                mclk_raw = _read_int(hw_dir / "freq2_input")
+                if mclk_raw is not None and mem_clock_mhz is None:
+                    mem_clock_mhz = int(round(mclk_raw / 1_000_000.0))
 
         return GpuSample(
             index=local_index,
@@ -139,6 +143,7 @@ class LinuxDrmGpuProvider(GpuProvider):
             available=True,
             util_percent=util_percent,
             clock_mhz=clock_mhz,
+            mem_clock_mhz=mem_clock_mhz,
             temp_c=temp_c,
             fan_rpm=fan_rpm,
             vram_used_mb=vram_used_mb,
