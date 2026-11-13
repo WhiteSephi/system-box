@@ -4,6 +4,12 @@ Alle relevanten Änderungen an diesem Projekt werden in dieser Datei dokumentier
 Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/),
 und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 
+## [0.7.3] - 2026-11-13
+### Changed
+- **GPU-Widget (`src/ui/gpu_widget.py`):** Lüfterdrehzahl (`RPM`) mittig zwischen Temperatur (links) und Leistung (rechts) zentriert und mit einem eigenen vektorbasierten 3-Blatt-Lüftericon (`FanIconWidget` via `QPainter`) versehen.
+- **GPU-Leistungsanzeige:** Max.-Leistung (`max <N> W`) dezent in Grau weiter Richtung Mitte und aktuelle Leistung (`<N> W`) farbig ganz rechts außen platziert.
+- **Optik & Konsistenz:** Dezente 1-px-Header-Trennlinie im GPU- und CPU-Widget ergänzt sowie Prozentangaben in beiden Widgets einheitlich ohne Leerzeichen (`%`) formatiert.
+
 ## [0.7.2] - 2026-11-13
 ### Added
 - Multi-Size App-Icon (`assets/app_icon.ico`, 16–256 px) direkt aus dem Vektor-Tray-Icon (`render_systembox_pixmap`) erzeugt und in `SystemBox.spec` für die Windows-`.exe` eingebunden.

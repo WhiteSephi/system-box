@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QHBoxLayout, QLabel, QVBoxLayout, QWidget
+from PySide6.QtGui import QColor
+from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
 from src.config import AppConfig
 from src.sensors.models import SystemSnapshot
@@ -33,13 +34,18 @@ class CpuSystemWidget(BaseDesktopWidget):
         hdr.addWidget(self.lbl_temp_pill)
         self._layout.addLayout(hdr)
 
+        self._hdr_line = QFrame()
+        self._hdr_line.setFrameShape(QFrame.Shape.HLine)
+        self._hdr_line.setFixedHeight(1)
+        self._layout.addWidget(self._hdr_line)
+
         # Section 1: CPU
         self._sec_cpu = QWidget()
         v1 = QVBoxLayout(self._sec_cpu)
         v1.setContentsMargins(0, 0, 0, 0)
         v1.setSpacing(2)
         r1 = QHBoxLayout()
-        self.lbl_cpu = QLabel("CPU: -- %")
+        self.lbl_cpu = QLabel("CPU: --%")
         self.lbl_cpu_clk = QLabel("-- MHz")
         self.lbl_cpu_clk.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         r1.addWidget(self.lbl_cpu)
@@ -57,7 +63,7 @@ class CpuSystemWidget(BaseDesktopWidget):
         v2.setSpacing(2)
         r2 = QHBoxLayout()
         self.lbl_ram = QLabel("RAM: -- GB")
-        self.lbl_ram_pct = QLabel("-- %")
+        self.lbl_ram_pct = QLabel("--%")
         self.lbl_ram_pct.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         r2.addWidget(self.lbl_ram)
         r2.addStretch(1)
@@ -120,6 +126,11 @@ class CpuSystemWidget(BaseDesktopWidget):
         self.lbl_title.setFont(self.make_font(10.0, bold=True))
         self.lbl_title.setStyleSheet(f"color: {self.config.title_color};")
 
+        line_col = QColor(self.config.border_color)
+        self._hdr_line.setStyleSheet(
+            f"background-color: rgba({line_col.red()}, {line_col.green()}, {line_col.blue()}, 95); border: none;"
+        )
+
         self.lbl_temp_pill.setFont(self.make_font(8.5, bold=True))
         self.lbl_temp_pill.setStyleSheet(
             f"color: {self.config.temp_color}; border: 1px solid {self.config.temp_color}; border-radius: {self.sc(4)}px; padding: 1px {self.sc(5)}px;"
@@ -161,7 +172,7 @@ class CpuSystemWidget(BaseDesktopWidget):
         else:
             self.lbl_temp_pill.setVisible(False)
 
-        cpu_txt = f"CPU: {cpu.cpu_percent:.1f} %"
+        cpu_txt = f"CPU: {cpu.cpu_percent:.1f}%"
         if self.config.cpu_show_max_core:
             cpu_txt += f" (Max-Kern {cpu.cpu_max_core_percent:.0f}%)"
         self.lbl_cpu.setText(cpu_txt)
@@ -169,7 +180,7 @@ class CpuSystemWidget(BaseDesktopWidget):
         self.graph_cpu.push_value(cpu.cpu_percent, 100.0)
 
         self.lbl_ram.setText(f"RAM: {cpu.ram_used_gb:.1f} / {cpu.ram_total_gb:.1f} GB")
-        self.lbl_ram_pct.setText(f"{cpu.ram_percent:.1f} %")
+        self.lbl_ram_pct.setText(f"{cpu.ram_percent:.1f}%")
         self.graph_ram.push_value(cpu.ram_percent, 100.0)
 
         if self.config.cpu_show_page_faults:

@@ -2,13 +2,56 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QHBoxLayout, QLabel, QVBoxLayout, QWidget
+from PySide6.QtCore import QPointF, Qt
+from PySide6.QtGui import QColor, QPainter, QPainterPath
+from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
 from src.config import AppConfig
 from src.sensors.models import GpuSample, SystemSnapshot
 from src.ui.base_widget import BaseDesktopWidget
 from src.ui.graph_canvas import MiniLiveGraphWidget
+
+
+class FanIconWidget(QWidget):
+    """Crisp vector-drawn 3-blade fan icon scaled to widget font size."""
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._color = QColor("#9AA0A6")
+        self.setFixedSize(12, 12)
+
+    def set_color(self, hex_color: str) -> None:
+        self._color = QColor(hex_color)
+        self.update()
+
+    def set_icon_size(self, px: int) -> None:
+        size = max(10, px)
+        self.setFixedSize(size, size)
+
+    def paintEvent(self, event) -> None:  # noqa: N802
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(self._color)
+
+        cx = self.width() / 2.0
+        cy = self.height() / 2.0
+        r = min(self.width(), self.height()) * 0.46
+
+        blade = QPainterPath()
+        blade.moveTo(0.0, -r * 0.16)
+        blade.cubicTo(r * 0.58, -r * 0.28, r * 0.56, -r * 0.88, 0.0, -r)
+        blade.cubicTo(-r * 0.34, -r * 0.84, -r * 0.28, -r * 0.36, 0.0, -r * 0.16)
+
+        for angle in (0, 120, 240):
+            painter.save()
+            painter.translate(cx, cy)
+            painter.rotate(angle)
+            painter.drawPath(blade)
+            painter.restore()
+
+        hub_r = max(1.3, r * 0.22)
+        painter.drawEllipse(QPointF(cx, cy), hub_r, hub_r)
 
 
 class GpuWidget(BaseDesktopWidget):
@@ -35,13 +78,18 @@ class GpuWidget(BaseDesktopWidget):
         hdr.addWidget(self.lbl_throttle)
         self._layout.addLayout(hdr)
 
+        self._hdr_line = QFrame()
+        self._hdr_line.setFrameShape(QFrame.Shape.HLine)
+        self._hdr_line.setFixedHeight(1)
+        self._layout.addWidget(self._hdr_line)
+
         # Section 1: Utilization & Clock
         self._sec_util = QWidget()
         v1 = QVBoxLayout(self._sec_util)
         v1.setContentsMargins(0, 0, 0, 0)
         v1.setSpacing(2)
         r1 = QHBoxLayout()
-        self.lbl_util = QLabel("GPU: -- %")
+        self.lbl_util = QLabel("GPU: --%")
         self.lbl_clock = QLabel("-- MHz")
         self.lbl_clock.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         r1.addWidget(self.lbl_util)
@@ -58,15 +106,28 @@ class GpuWidget(BaseDesktopWidget):
         v2.setContentsMargins(0, 0, 0, 0)
         v2.setSpacing(2)
         r2 = QHBoxLayout()
-        r2.setSpacing(6)
+        r2.setSpacing(4)
         self.lbl_temp = QLabel("-- °C")
+
+        self._fan_box = QWidget()
+        self._fan_layout = QHBoxLayout(self._fan_box)
+        self._fan_layout.setContentsMargins(0, 0, 0, 0)
+        self._fan_layout.setSpacing(4)
+        self.fan_icon = FanIconWidget(self._fan_box)
         self.lbl_fan_pwr = QLabel("")
-        self.lbl_fan_pwr.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        self.lbl_fan_pwr.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._fan_layout.addWidget(self.fan_icon)
+        self._fan_layout.addWidget(self.lbl_fan_pwr)
+
+        self.lbl_power_max = QLabel("")
+        self.lbl_power_max.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         self.lbl_power = QLabel("")
         self.lbl_power.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         r2.addWidget(self.lbl_temp)
         r2.addStretch(1)
-        r2.addWidget(self.lbl_fan_pwr)
+        r2.addWidget(self._fan_box)
+        r2.addStretch(1)
+        r2.addWidget(self.lbl_power_max)
         r2.addWidget(self.lbl_power)
         self.graph_temp = MiniLiveGraphWidget(self.config.history_seconds, self.config.temp_color, self.config.grid_color, 100.0)
         v2.addLayout(r2)
@@ -98,6 +159,11 @@ class GpuWidget(BaseDesktopWidget):
         self.lbl_title.setFont(self.make_font(10.0, bold=True))
         self.lbl_title.setStyleSheet(f"color: {self.config.title_color};")
 
+        line_col = QColor(self.config.border_color)
+        self._hdr_line.setStyleSheet(
+            f"background-color: rgba({line_col.red()}, {line_col.green()}, {line_col.blue()}, 95); border: none;"
+        )
+
         self.lbl_throttle.setFont(self.make_font(7.5, bold=True))
         self.lbl_throttle.setStyleSheet(
             f"color: #FFFFFF; background-color: {self.config.temp_color}; border-radius: {self.sc(3)}px; padding: 1px {self.sc(4)}px;"
@@ -110,9 +176,13 @@ class GpuWidget(BaseDesktopWidget):
             lbl.setStyleSheet(f"color: {self.config.title_color};")
         self.lbl_temp.setFont(val_font)
         self.lbl_temp.setStyleSheet(f"color: {self.config.temp_color};")
-        for lbl in (self.lbl_clock, self.lbl_fan_pwr, self.lbl_vram_total):
+        for lbl in (self.lbl_clock, self.lbl_fan_pwr, self.lbl_power_max, self.lbl_vram_total):
             lbl.setFont(sub_font)
             lbl.setStyleSheet(f"color: {self.config.muted_color};")
+
+        self.fan_icon.set_color(self.config.muted_color)
+        self.fan_icon.set_icon_size(self.sc(12))
+        self._fan_layout.setSpacing(self.sc(4))
 
         self.lbl_power.setFont(val_font)
         self.lbl_power.setStyleSheet(f"color: {self.config.secondary_color};")
@@ -138,6 +208,9 @@ class GpuWidget(BaseDesktopWidget):
             self.lbl_clock.setText("")
             self.lbl_temp.setText("--")
             self.lbl_fan_pwr.setText("")
+            self._fan_box.setVisible(False)
+            self.lbl_power_max.setText("")
+            self.lbl_power_max.setVisible(False)
             self.lbl_power.setText("")
             self.lbl_vram_used.setText("VRAM: --")
             self.lbl_vram_total.setText("")
@@ -150,7 +223,7 @@ class GpuWidget(BaseDesktopWidget):
         else:
             self.lbl_throttle.setVisible(False)
 
-        util_txt = f"{gpu.util_percent:.0f} %" if gpu.util_percent is not None else "-- %"
+        util_txt = f"{gpu.util_percent:.0f}%" if gpu.util_percent is not None else "--%"
         clk_txt = f"{gpu.clock_mhz} MHz" if gpu.clock_mhz is not None else ""
         self.lbl_util.setText(f"GPU: {util_txt}")
         self.lbl_clock.setText(clk_txt)
@@ -162,13 +235,18 @@ class GpuWidget(BaseDesktopWidget):
 
         pwr_pct: float | None = None
         if self.config.gpu_show_power_fan and gpu.power_watts is not None:
+            self.lbl_power.setText(f"{gpu.power_watts:.0f} W")
+            self.lbl_power.setVisible(True)
             if gpu.power_limit_watts and gpu.power_limit_watts > 0:
                 pwr_pct = min(100.0, (gpu.power_watts / gpu.power_limit_watts) * 100.0)
-                self.lbl_power.setText(f"{gpu.power_watts:.0f}/{gpu.power_limit_watts:.0f} W")
+                self.lbl_power_max.setText(f"max {gpu.power_limit_watts:.0f} W")
+                self.lbl_power_max.setVisible(True)
             else:
-                self.lbl_power.setText(f"{gpu.power_watts:.0f} W")
-            self.lbl_power.setVisible(True)
+                self.lbl_power_max.setText("")
+                self.lbl_power_max.setVisible(False)
         else:
+            self.lbl_power_max.setText("")
+            self.lbl_power_max.setVisible(False)
             self.lbl_power.setText("")
             self.lbl_power.setVisible(False)
 
@@ -182,8 +260,9 @@ class GpuWidget(BaseDesktopWidget):
                 if gpu.fan_percent is not None:
                     fan_txt += f" ({gpu.fan_percent}%)"
             elif gpu.fan_percent is not None:
-                fan_txt = f"Lüfter {gpu.fan_percent}%"
+                fan_txt = f"{gpu.fan_percent}%"
         self.lbl_fan_pwr.setText(fan_txt)
+        self._fan_box.setVisible(bool(fan_txt))
 
         vram_pct = 0.0
         if gpu.vram_used_mb is not None and gpu.vram_total_mb:
