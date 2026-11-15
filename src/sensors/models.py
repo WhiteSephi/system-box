@@ -62,9 +62,24 @@ class CpuSystemSample:
 
 
 @dataclass(slots=True)
+class DiskSpaceInfo:
+    """Capacity and usage snapshot for a single mounted partition or drive."""
+
+    device: str = ""
+    mountpoint: str = ""
+    label: str = ""
+    fstype: str = ""
+    total_gb: float = 0.0
+    used_gb: float = 0.0
+    free_gb: float = 0.0
+    percent: float = 0.0
+
+
+@dataclass(slots=True)
 class SystemSnapshot:
     """Combined snapshot produced on each polling tick."""
 
     cpu: CpuSystemSample = field(default_factory=CpuSystemSample)
     gpus: list[GpuInfo] = field(default_factory=list)
     active_gpu: GpuSample = field(default_factory=GpuSample)
+    disks: list[DiskSpaceInfo] = field(default_factory=list)

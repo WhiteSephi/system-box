@@ -250,3 +250,52 @@ def test_gpu_optional_mem_clock_and_driver_version() -> None:
     assert gpu.lbl_title.text() == "Generic Test GPU (v560.94)"
     assert gpu.lbl_vram_total.text() == "10501 MHz · 16.0 GB"
     gpu.close()
+
+
+def test_x11_skip_taskbar_on_linux() -> None:
+    from unittest.mock import patch
+
+    app = _ensure_qapp()
+    cfg = AppConfig()
+    clock = ClockWidget(cfg)
+
+    # Primary path: libX11 succeeds on xcb -> xprop fallback is not invoked
+    with (
+        patch("src.ui.base_widget.sys.platform", "linux"),
+        patch.object(app, "platformName", return_value="xcb"),
+        patch.object(clock, "winId", return_value=123456),
+        patch.object(clock, "_set_x11_skip_taskbar_libx11", return_value=True) as mock_libx11,
+        patch.object(clock, "_set_x11_skip_taskbar_xprop") as mock_xprop,
+    ):
+        clock._apply_x11_skip_taskbar()
+        mock_libx11.assert_called_once_with(123456)
+        mock_xprop.assert_not_called()
+
+    # Fallback path: libX11 unavailable -> xprop is invoked
+    with (
+        patch("src.ui.base_widget.sys.platform", "linux"),
+        patch.object(app, "platformName", return_value="xcb"),
+        patch.object(clock, "winId", return_value=123456),
+        patch.object(clock, "_set_x11_skip_taskbar_libx11", return_value=False),
+        patch("src.ui.base_widget.shutil.which", return_value="/usr/bin/xprop"),
+        patch("src.ui.base_widget.subprocess.run") as mock_run,
+    ):
+        clock._apply_x11_skip_taskbar()
+        mock_run.assert_called_once()
+        cmd = mock_run.call_args.args[0]
+        assert cmd[:4] == ["/usr/bin/xprop", "-id", "123456", "-f"]
+        assert "_NET_WM_STATE_SKIP_TASKBAR, _NET_WM_STATE_SKIP_PAGER" in cmd
+
+    # Wayland & Windows: no X11 call
+    for plat, qpa in (("linux", "wayland"), ("win32", "windows")):
+        with (
+            patch("src.ui.base_widget.sys.platform", plat),
+            patch.object(app, "platformName", return_value=qpa),
+            patch.object(clock, "_set_x11_skip_taskbar_libx11") as mock_libx11,
+            patch("src.ui.base_widget.subprocess.run") as mock_run,
+        ):
+            clock._apply_x11_skip_taskbar()
+            mock_libx11.assert_not_called()
+            mock_run.assert_not_called()
+
+    clock.close()

@@ -75,6 +75,7 @@ def _default_widgets() -> dict[str, WidgetConfig]:
         "clock": WidgetConfig(enabled=True, width=250, height=185),
         "gpu": WidgetConfig(enabled=True, width=330, height=270),
         "cpu": WidgetConfig(enabled=True, width=330, height=250),
+        "storage": WidgetConfig(enabled=True, width=330, height=185),
     }
 
 
@@ -108,11 +109,16 @@ class AppConfig:
     clock_24h: bool = True
     cpu_show_max_core: bool = True
     cpu_show_disk_io: bool = True
+    cpu_disk_device: str = ""
     cpu_show_page_faults: bool = False
     gpu_show_power_fan: bool = True
     gpu_show_mem_clock: bool = False
     gpu_show_driver_version: bool = False
     gpu_temp_warn_c: int = 80
+    storage_warn_percent: int = 85
+    storage_deduplicate_devices: bool = True
+    storage_show_free_first: bool = True
+    storage_show_boot: bool = False
 
     # Theme & Colors
     theme_name: str = DEFAULT_THEME_NAME
@@ -187,6 +193,7 @@ class AppConfig:
         self.start_delay_sec = max(0, min(60, int(self.start_delay_sec)))
         self.selected_gpu_index = max(0, int(self.selected_gpu_index))
         self.gpu_temp_warn_c = max(50, min(105, int(self.gpu_temp_warn_c)))
+        self.storage_warn_percent = max(50, min(99, int(self.storage_warn_percent)))
 
         defaults = _default_widgets()
         for key, default_wc in defaults.items():

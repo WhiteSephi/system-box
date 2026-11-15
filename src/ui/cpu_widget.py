@@ -164,6 +164,8 @@ class CpuSystemWidget(BaseDesktopWidget):
 
         self._sec_pf.setVisible(self.config.cpu_show_page_faults)
         self._sec_disk.setVisible(self.config.cpu_show_disk_io)
+        disk_label = self.config.cpu_disk_device or "Alle Datenträger (Summe)"
+        self.lbl_disk_r.setToolTip(f"Überwachtes Laufwerk: {disk_label}")
 
         active_sections = 2 + int(self.config.cpu_show_page_faults) + int(self.config.cpu_show_disk_io)
         self.setMinimumSize(self.sc(220), self.sc(44 + active_sections * 46))

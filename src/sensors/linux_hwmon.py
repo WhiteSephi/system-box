@@ -114,6 +114,7 @@ class LinuxDrmGpuProvider(GpuProvider):
         temp_c: float | None = None
         fan_rpm: int | None = None
         power_watts: float | None = None
+        power_limit_watts: float | None = None
         clock_mhz: int | None = None
         mem_clock_mhz: int | None = None
 
@@ -129,6 +130,9 @@ class LinuxDrmGpuProvider(GpuProvider):
                 p_raw = _read_int(hw_dir / "power1_average") or _read_int(hw_dir / "power1_input")
                 if p_raw is not None and power_watts is None:
                     power_watts = round(p_raw / 1_000_000.0, 1)
+                pcap_raw = _read_int(hw_dir / "power1_cap") or _read_int(hw_dir / "power1_cap_default")
+                if pcap_raw is not None and pcap_raw > 0 and power_limit_watts is None:
+                    power_limit_watts = round(pcap_raw / 1_000_000.0, 1)
                 freq_raw = _read_int(hw_dir / "freq1_input")
                 if freq_raw is not None and clock_mhz is None:
                     clock_mhz = int(round(freq_raw / 1_000_000.0))
@@ -149,4 +153,5 @@ class LinuxDrmGpuProvider(GpuProvider):
             vram_used_mb=vram_used_mb,
             vram_total_mb=info.vram_total_mb,
             power_watts=power_watts,
+            power_limit_watts=power_limit_watts,
         )

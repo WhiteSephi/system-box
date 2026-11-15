@@ -29,8 +29,12 @@ class GpuProvider(ABC):
 class SystemProvider(ABC):
     """Abstract provider for CPU, memory, disk, and temperature metrics."""
 
+    def list_disks(self) -> list[str]:
+        """Return available physical disk device names for per-disk I/O monitoring."""
+        return []
+
     @abstractmethod
-    def read_system(self) -> CpuSystemSample:
+    def read_system(self, disk_device: str = "") -> CpuSystemSample:
         """Read a live CPU/system telemetry sample."""
 
     def close(self) -> None:

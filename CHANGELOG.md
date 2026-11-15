@@ -4,6 +4,57 @@ Alle relevanten Änderungen an diesem Projekt werden in dieser Datei dokumentier
 Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/),
 und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 
+## [0.13.1] - 2026-11-14
+### Changed
+- **Tab `Datenträger` in den Einstellungen (`src/ui/settings_dlg.py`):** Btrfs-/Windows-Hinweise aus den Checkbox-Texten entfernt, Linux-spezifische Optionen (`Identische Laufwerke zusammenfassen`, `Boot-Partitionen`) nur noch unter Linux eingeblendet und Mindestbreite des Einstellungsfensters auf `720 px` erhöht, damit alle 8 Tabs ohne Scroll-Pfeile passen.
+
+## [0.13.0] - 2026-11-14
+### Added
+- **4. Widget `Datenträger & Speicher` (`src/sensors/disk_space.py`, `src/ui/storage_widget.py`, `src/sensors/models.py`, `src/sensors/manager.py`, `src/config.py`, `src/app.py`, `src/ui/settings_dlg.py`):**
+  - Plattformübergreifende Speicherplatz-Übersicht mit Fortschrittsbalken, Prozentwert, freiem/belegtem Speicher (wie Windows „Dieser PC“) und Doppelklick zum Öffnen im Dateimanager.
+  - Intelligente Linux-Filterung & Deduplizierung (Btrfs-Subvolumes `@`/`@home`/`@log` auf demselben Gerät werden auf einen Eintrag zusammengefasst; `/mnt/...` und `/run/media/...` erscheinen mit lesbarem Namen; Pseudo-Dateisysteme und `/boot*` werden optional ausgeblendet).
+  - Unter Windows automatische Volume-Label-Erkennung via `GetVolumeInformationW` und Ausblendung leerer optischer Laufwerke.
+  - Neuer Tab `Datenträger` in den Einstellungen (Warnschwelle %, Btrfs-Deduplizierung, Anzeigeformat, `/boot`-Anzeige) sowie Tray-Menü-Eintrag.
+
+## [0.12.1] - 2026-11-14
+### Changed
+- **Modularisierung & Testausbau (`src/ui/color_picker.py`, `src/ui/linux_x11.py`, `src/ui/settings_dlg.py`, `src/ui/base_widget.py`, `tests/test_settings_and_app.py`):**
+  - `ModernColorPickerPopup`, `ColorButton` und `make_swatch_icon` aus `settings_dlg.py` nach `src/ui/color_picker.py` ausgelagert.
+  - `set_x11_skip_taskbar_libx11` aus `base_widget.py` nach `src/ui/linux_x11.py` ausgelagert.
+  - Neue Unit-/Offscreen-Tests für `SettingsDialog`, Kontextmenü, `PsutilSystemProvider` (Per-Disk I/O) und `SystemBoxApp`-Tray-Menü ergänzt.
+### Fixed
+- **Tray-Menü Escaping (`src/app.py`):** `&`-Zeichen in `Uhrzeit && Datum` und `CPU && System` korrekt für Qt escaped.
+
+## [0.12.0] - 2026-11-14
+### Added
+- **Laufwerks-Auswahl für Disk I/O (`src/config.py`, `src/sensors/base.py`, `src/sensors/psutil_provider.py`, `src/sensors/manager.py`, `src/app.py`, `src/ui/settings_dlg.py`, `src/ui/cpu_widget.py`):** Im Tab `CPU & System` kann jetzt über `Disk I/O Laufwerk` zwischen `Alle Datenträger (Summe)` (Standard) und einzelnen erkannten physischen Laufwerken (z. B. `nvme0n1`, `nvme1n1`) gewählt werden.
+
+## [0.11.5] - 2026-11-14
+### Fixed
+- **Watt-Graph im GPU-Widget (`src/sensors/linux_hwmon.py`, `src/ui/gpu_widget.py`):**
+  - `LinuxDrmGpuProvider` liest nun optional `power1_cap` / `power1_cap_default` aus `hwmon` als `power_limit_watts` aus.
+  - Fehlt `power_limit_watts` (z. B. bei APUs/iGPUs ohne `power1_cap`), nutzt `GpuWidget` einen dynamischen Fallback (`max(30.0, observed_max * 1.2)`), sodass die sekundäre Watt-Kurve im Temperatur-/Power-Graph nun immer gezeichnet wird.
+
+## [0.11.4] - 2026-11-14
+### Changed
+- **Theme-Auswahl & Vorlagen (`src/themes.py`, `src/ui/settings_dlg.py`):**
+  - Unpassende `FRITZ!Box Classic`-Vorlage durch `Amber Terminal (Bernstein & Graphit)` ersetzt.
+  - Auswahl eines Themes im Dropdown (`cmb_theme.activated`) aktualisiert die Farbfelder sofort zur Vorschau; ein Klick auf `Theme anwenden` speichert und übernimmt das Theme direkt live auf alle Widgets.
+
+## [0.11.3] - 2026-11-14
+### Changed
+- **Widget-Kontextmenü an TrafficBox angeglichen (`src/ui/base_widget.py`):** Reihenfolge und Beschriftung der Einträge vereinheitlicht (`Einstellungen...`, `Immer im Vordergrund`, `Position sperren`, `Widget ausblenden`, `Über SystemBox...`, `Beenden`). Dadurch entfällt auch das fehlende `&`-Mnemonic-Problem bei `CPU & System ausblenden`.
+
+## [0.11.2] - 2026-11-14
+### Fixed
+- **Hardware-Zeile im `Über`-Tab (`src/ui/settings_dlg.py`):** `FieldGrowthPolicy.ExpandingFieldsGrow` für das Diagnose-`QFormLayout` sowie `QSizePolicy(Expanding, Preferred)` und Maus-Textauswahl für das Hardware-`QLabel` gesetzt, sodass umgebrochene GPU-Bezeichnungen nicht mehr vertikal abgeschnitten werden.
+
+## [0.11.1] - 2026-11-13
+### Fixed
+- **Linux-Taskleiste (`src/ui/base_widget.py`, `src/autostart.py`, `src/main.py`):**
+  - In `BaseDesktopWidget.showEvent()` wird nun über `_apply_x11_skip_taskbar()` direkt per `libX11.so.6` (`XChangeProperty` + `_NET_WM_STATE_ADD` `XSendEvent`, mit `xprop` als Fallback) das EWMH-Atom `_NET_WM_STATE_SKIP_TASKBAR, _NET_WM_STATE_SKIP_PAGER` auf die X11/XWayland-Window-ID gesetzt.
+  - Analog zu TrafficBox trägt `sync_kwin_skip_taskbar_rule()` beim Start unter Linux automatisch eine KWin-Fensterregel (`[SystemBox-Taskbar]` mit `skiptaskbar=true`, `skiptaskbarrule=2`, `skipswitcher=true`, `skipswitcherrule=2`, `wmclass=.*[Ss]ystem[Bb]ox.*`) in `~/.config/kwinrulesrc` ein und lädt KWin per `qdbus6`/`qdbus` neu, sodass die Widgets unter KDE Plasma (Wayland & XWayland) zuverlässig aus Taskleiste und Alt+Tab verschwinden.
+
 ## [0.11.0] - 2026-11-13
 ### Added
 - **Optionale GPU-Treiberinfos (`src/sensors/models.py`, `src/sensors/nvidia_provider.py`, `src/sensors/linux_hwmon.py`, `src/config.py`, `src/ui/settings_dlg.py`, `src/ui/gpu_widget.py`):** Im Tab `GPU-Monitor` lassen sich jetzt optional `VRAM-Takt (MHz) anzeigen` (`gpu_show_mem_clock`, Standard `False`) und `Treiberversion im Header anzeigen` (`gpu_show_driver_version`, Standard `False`) aktivieren.

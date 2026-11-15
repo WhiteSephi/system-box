@@ -55,6 +55,11 @@ def main(argv: list[str] | None = None) -> int:
     app.setDesktopFileName("systembox")
     app.setQuitOnLastWindowClosed(False)
 
+    if sys.platform.startswith("linux") and not args.self_test:
+        from src.autostart import sync_kwin_skip_taskbar_rule
+
+        sync_kwin_skip_taskbar_rule()
+
     config = AppConfig.load()
     if args.autostart and config.start_delay_sec > 0 and not args.self_test:
         import time

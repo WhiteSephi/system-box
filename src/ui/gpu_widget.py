@@ -60,6 +60,7 @@ class GpuWidget(BaseDesktopWidget):
     def __init__(self, config: AppConfig) -> None:
         super().__init__("gpu", "GPU-Monitor", config)
         self._last_gpu = GpuSample()
+        self._observed_max_power_w = 0.0
         self._build_ui()
         self.on_apply_config()
 
@@ -336,6 +337,10 @@ class GpuWidget(BaseDesktopWidget):
             self.lbl_power.setVisible(True)
             if gpu.power_limit_watts and gpu.power_limit_watts > 0:
                 pwr_pct = min(100.0, (gpu.power_watts / gpu.power_limit_watts) * 100.0)
+            else:
+                self._observed_max_power_w = max(self._observed_max_power_w, gpu.power_watts)
+                fallback_limit = max(30.0, self._observed_max_power_w * 1.2)
+                pwr_pct = min(100.0, (gpu.power_watts / fallback_limit) * 100.0)
         else:
             self.lbl_power.setText("")
             self.lbl_power.setVisible(False)

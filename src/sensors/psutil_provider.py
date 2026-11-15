@@ -18,6 +18,7 @@ class PsutilSystemProvider(SystemProvider):
     """Reads CPU, per-core peak, clock, RAM, Disk I/O, and uptime via psutil."""
 
     def __init__(self) -> None:
+        self._last_disk_device: str = ""
         self._last_disk_io = self._safe_disk_io()
         self._last_disk_ts = time.monotonic()
         self._last_pgfault: int | None = self._read_hard_page_faults()
@@ -51,8 +52,30 @@ class PsutilSystemProvider(SystemProvider):
         return None
 
     @staticmethod
-    def _safe_disk_io():
+    def list_disks() -> list[str]:
+        """Return sorted list of physical disk devices available in psutil."""
         try:
+            counters = psutil.disk_io_counters(perdisk=True) or {}
+        except Exception:
+            return []
+        keys = sorted(counters.keys())
+        if sys.platform.startswith("linux"):
+            sys_block = Path("/sys/block")
+            if sys_block.is_dir():
+                physical = [
+                    k for k in keys
+                    if (sys_block / k).is_dir() and not k.startswith(("loop", "zram", "ram"))
+                ]
+                if physical:
+                    return physical
+        return [k for k in keys if not k.startswith(("loop", "zram", "ram"))]
+
+    @staticmethod
+    def _safe_disk_io(disk_device: str = ""):
+        try:
+            if disk_device:
+                perdisk = psutil.disk_io_counters(perdisk=True) or {}
+                return perdisk.get(disk_device)
             return psutil.disk_io_counters()
         except Exception:
             return None
@@ -85,7 +108,7 @@ class PsutilSystemProvider(SystemProvider):
                     return float(entry.current), chip
         return None, None
 
-    def read_system(self) -> CpuSystemSample:
+    def read_system(self, disk_device: str = "") -> CpuSystemSample:
         """Collect current CPU, RAM, Disk I/O, and uptime metrics."""
         per_core: list[float] = []
         try:
@@ -146,7 +169,10 @@ class PsutilSystemProvider(SystemProvider):
 
         disk_read_mb_s = 0.0
         disk_write_mb_s = 0.0
-        cur_io = self._safe_disk_io()
+        if disk_device != self._last_disk_device:
+            self._last_disk_io = None
+            self._last_disk_device = disk_device
+        cur_io = self._safe_disk_io(disk_device)
         if cur_io is not None and self._last_disk_io is not None:
             dt = max(0.05, now - self._last_disk_ts)
             read_bytes = max(0, cur_io.read_bytes - self._last_disk_io.read_bytes)

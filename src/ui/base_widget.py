@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+import logging
 import math
+import shutil
+import subprocess
+import sys
 
 from PySide6.QtCore import QPoint, QPointF, QRect, QRectF, QSize, Qt, QTimer, Signal
 from PySide6.QtGui import (
@@ -19,11 +23,15 @@ from PySide6.QtGui import (
     QPen,
     QPixmap,
     QResizeEvent,
+    QShowEvent,
 )
 from PySide6.QtWidgets import QApplication, QMenu, QPushButton, QSizeGrip, QWidget
 
 from src.config import AppConfig
+from src.ui.linux_x11 import set_x11_skip_taskbar_libx11
 from src.ui.tray import create_systembox_icon
+
+logger = logging.getLogger(__name__)
 
 
 class VisualSizeGrip(QSizeGrip):
@@ -250,6 +258,59 @@ class BaseDesktopWidget(QWidget):
         if not self._restoring_geometry:
             self._save_geo_timer.start(300)
 
+    def showEvent(self, event: QShowEvent) -> None:
+        super().showEvent(event)
+        self._apply_x11_skip_taskbar()
+        if sys.platform.startswith("linux"):
+            QTimer.singleShot(50, self._apply_x11_skip_taskbar)
+
+    def _apply_x11_skip_taskbar(self) -> None:
+        """Ensure _NET_WM_STATE_SKIP_TASKBAR is set on X11/XWayland surfaces to hide from taskbars."""
+        if not sys.platform.startswith("linux"):
+            return
+        app = QApplication.instance()
+        if app is not None and app.platformName() not in ("xcb", ""):
+            return
+        wid = self.winId()
+        if not wid:
+            return
+        if self._set_x11_skip_taskbar_libx11(int(wid)):
+            return
+        self._set_x11_skip_taskbar_xprop(int(wid))
+
+    @staticmethod
+    def _set_x11_skip_taskbar_libx11(wid: int) -> bool:
+        """Set _NET_WM_STATE_SKIP_TASKBAR and _NET_WM_STATE_SKIP_PAGER directly via libX11."""
+        return set_x11_skip_taskbar_libx11(wid)
+
+    @staticmethod
+    def _set_x11_skip_taskbar_xprop(wid: int) -> None:
+        """Fallback: set _NET_WM_STATE_SKIP_TASKBAR via xprop CLI if available."""
+        xprop_bin = shutil.which("xprop")
+        if not xprop_bin:
+            logger.debug("Neither libX11 nor xprop available; cannot set _NET_WM_STATE_SKIP_TASKBAR")
+            return
+        try:
+            subprocess.run(
+                [
+                    xprop_bin,
+                    "-id",
+                    str(wid),
+                    "-f",
+                    "_NET_WM_STATE",
+                    "32a",
+                    "-set",
+                    "_NET_WM_STATE",
+                    "_NET_WM_STATE_SKIP_TASKBAR, _NET_WM_STATE_SKIP_PAGER",
+                ],
+                check=False,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=0.5,
+            )
+        except (OSError, subprocess.SubprocessError) as exc:
+            logger.warning("Failed to apply _NET_WM_STATE_SKIP_TASKBAR via xprop: %s", exc)
+
     def paintEvent(self, _event: QPaintEvent) -> None:
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
@@ -358,29 +419,35 @@ class BaseDesktopWidget(QWidget):
     def contextMenuEvent(self, event: QContextMenuEvent) -> None:
         menu = QMenu(self)
 
-        act_lock = QAction("Position sperren", menu, checkable=True)
-        act_lock.setChecked(self.config.effective_locked_pos(self.widget_key))
-        act_lock.triggered.connect(self._toggle_lock)
-        menu.addAction(act_lock)
-
-        act_top = QAction("Immer im Vordergrund", menu, checkable=True)
-        act_top.setChecked(self.config.effective_always_on_top(self.widget_key))
-        act_top.triggered.connect(self._toggle_top)
-        menu.addAction(act_top)
-
-        menu.addSeparator()
-
-        act_hide = QAction(f"{self.display_name} ausblenden", menu)
-        act_hide.triggered.connect(self._hide_widget)
-        menu.addAction(act_hide)
-
         act_settings = QAction("Einstellungen...", menu)
         act_settings.triggered.connect(lambda: self.settings_requested.emit(self.widget_key))
         menu.addAction(act_settings)
 
         menu.addSeparator()
 
-        act_quit = QAction("SystemBox beenden", menu)
+        act_top = QAction("Immer im Vordergrund", menu, checkable=True)
+        act_top.setChecked(self.config.effective_always_on_top(self.widget_key))
+        act_top.triggered.connect(self._toggle_top)
+        menu.addAction(act_top)
+
+        act_lock = QAction("Position sperren", menu, checkable=True)
+        act_lock.setChecked(self.config.effective_locked_pos(self.widget_key))
+        act_lock.triggered.connect(self._toggle_lock)
+        menu.addAction(act_lock)
+
+        menu.addSeparator()
+
+        act_hide = QAction("Widget ausblenden", menu)
+        act_hide.triggered.connect(self._hide_widget)
+        menu.addAction(act_hide)
+
+        menu.addSeparator()
+
+        act_about = QAction("Über SystemBox...", menu)
+        act_about.triggered.connect(lambda: self.settings_requested.emit("about"))
+        menu.addAction(act_about)
+
+        act_quit = QAction("Beenden", menu)
         act_quit.triggered.connect(self.quit_requested.emit)
         menu.addAction(act_quit)
 

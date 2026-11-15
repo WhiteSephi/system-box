@@ -13,6 +13,7 @@ from src.ui.clock_widget import ClockWidget
 from src.ui.cpu_widget import CpuSystemWidget
 from src.ui.gpu_widget import GpuWidget
 from src.ui.settings_dlg import SettingsDialog
+from src.ui.storage_widget import StorageWidget
 from src.ui.tray import create_systembox_icon
 
 
@@ -29,10 +30,12 @@ class SystemBoxApp(QObject):
         self.clock_widget = ClockWidget(self.config)
         self.gpu_widget = GpuWidget(self.config)
         self.cpu_widget = CpuSystemWidget(self.config)
+        self.storage_widget = StorageWidget(self.config)
         self._widgets: dict[str, BaseDesktopWidget] = {
             "clock": self.clock_widget,
             "gpu": self.gpu_widget,
             "cpu": self.cpu_widget,
+            "storage": self.storage_widget,
         }
 
         for widget in self._widgets.values():
@@ -56,7 +59,12 @@ class SystemBoxApp(QObject):
 
         self._tray_menu = QMenu()
         self._tray_widget_actions: dict[str, QAction] = {}
-        for key, label in (("clock", "Uhrzeit & Datum"), ("gpu", "GPU-Monitor"), ("cpu", "CPU & System")):
+        for key, label in (
+            ("clock", "Uhrzeit && Datum"),
+            ("gpu", "GPU-Monitor"),
+            ("cpu", "CPU && System"),
+            ("storage", "Datenträger && Speicher"),
+        ):
             act = QAction(label, self._tray_menu, checkable=True)
             act.triggered.connect(lambda checked, k=key: self._toggle_widget_enabled(k, checked))
             self._tray_menu.addAction(act)
@@ -132,10 +140,16 @@ class SystemBoxApp(QObject):
         self._poll_sensors()
 
     def _poll_sensors(self) -> None:
-        snapshot = self.sensor_manager.poll(selected_gpu_index=self.config.selected_gpu_index)
+        snapshot = self.sensor_manager.poll(
+            selected_gpu_index=self.config.selected_gpu_index,
+            disk_device=self.config.cpu_disk_device,
+            storage_deduplicate=self.config.storage_deduplicate_devices,
+            storage_show_boot=self.config.storage_show_boot,
+        )
         self.clock_widget.update_snapshot(snapshot)
         self.gpu_widget.update_snapshot(snapshot)
         self.cpu_widget.update_snapshot(snapshot)
+        self.storage_widget.update_snapshot(snapshot)
 
     def open_settings(self, tab_key: str = "") -> None:
         """Show or raise the central SettingsDialog, optionally selecting a tab."""
@@ -151,6 +165,7 @@ class SystemBoxApp(QObject):
             gpus=self.sensor_manager.list_gpus(),
             on_apply=self.apply_all_configs,
             initial_tab=tab_key,
+            disks=self.sensor_manager.list_disks(),
         )
         self._settings_dlg.show()
         self._settings_dlg.raise_()

@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import sys
+import time
 
 from src.sensors.base import GpuProvider, SystemProvider
+from src.sensors.disk_space import read_disk_spaces
 from src.sensors.linux_hwmon import LinuxDrmGpuProvider, read_linux_cpu_temp
-from src.sensors.models import CpuSystemSample, GpuInfo, GpuSample, SystemSnapshot
+from src.sensors.models import CpuSystemSample, DiskSpaceInfo, GpuInfo, GpuSample, SystemSnapshot
 from src.sensors.nvidia_provider import NvidiaGpuProvider
 from src.sensors.psutil_provider import PsutilSystemProvider
 from src.sensors.windows_fallback import WindowsPdhGpuProvider, read_hwinfo_cpu_temp
@@ -22,6 +24,9 @@ class SensorManager:
     ) -> None:
         self._system_provider = system_provider or PsutilSystemProvider()
         self._gpu_entries: list[tuple[GpuInfo, GpuProvider, int]] = []
+        self._cached_disks: list[DiskSpaceInfo] = []
+        self._last_disk_space_ts: float = 0.0
+        self._last_disk_space_opts: tuple[bool, bool] | None = None
 
         if gpu_providers is not None:
             providers = gpu_providers
@@ -74,10 +79,23 @@ class SensorManager:
         """Return all discovered GPUs with global indices."""
         return [info for info, _, _ in self._gpu_entries]
 
-    def poll(self, selected_gpu_index: int = 0) -> SystemSnapshot:
+    def list_disks(self) -> list[str]:
+        """Return all discovered physical disk devices."""
+        try:
+            return self._system_provider.list_disks()
+        except Exception:
+            return []
+
+    def poll(
+        self,
+        selected_gpu_index: int = 0,
+        disk_device: str = "",
+        storage_deduplicate: bool = True,
+        storage_show_boot: bool = False,
+    ) -> SystemSnapshot:
         """Collect CPU/system and selected GPU metrics without raising on missing sensors."""
         try:
-            cpu_sample = self._system_provider.read_system()
+            cpu_sample = self._system_provider.read_system(disk_device=disk_device)
         except Exception:
             cpu_sample = CpuSystemSample()
 
@@ -107,7 +125,20 @@ class SensorManager:
             except Exception:
                 active_gpu = GpuSample(index=info.index, name=info.name, vendor=info.vendor, available=False)
 
-        return SystemSnapshot(cpu=cpu_sample, gpus=gpu_list, active_gpu=active_gpu)
+        now = time.monotonic()
+        opts = (storage_deduplicate, storage_show_boot)
+        if self._last_disk_space_opts != opts or (now - self._last_disk_space_ts) >= 5.0:
+            try:
+                self._cached_disks = read_disk_spaces(
+                    deduplicate_devices=storage_deduplicate,
+                    show_boot=storage_show_boot,
+                )
+            except Exception:
+                self._cached_disks = []
+            self._last_disk_space_ts = now
+            self._last_disk_space_opts = opts
+
+        return SystemSnapshot(cpu=cpu_sample, gpus=gpu_list, active_gpu=active_gpu, disks=list(self._cached_disks))
 
     def close(self) -> None:
         """Close all underlying providers."""
