@@ -105,4 +105,34 @@ def test_storage_widget_renders_and_warns() -> None:
     assert "360.7 GB frei von 461.8 GB" in w._rows[0].lbl_sub.text()
     assert w._rows[1].bar._fill_color.name().lower() == cfg.temp_color.lower()
     assert format_storage_size(2048.0) == "2.00 TB"
+
+    # Hide the second mountpoint and re-apply config
+    cfg.storage_hidden_mountpoints = ["/mnt/Backup"]
+    w.on_apply_config()
+    assert not w._rows[0].isHidden()
+    assert w._rows[1].isHidden()
     w.close()
+
+
+def test_settings_dialog_storage_drive_selection(monkeypatch) -> None:
+    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+    from src.ui.settings_dlg import SettingsDialog
+
+    app = QApplication.instance() or QApplication([])
+    assert app is not None
+
+    cfg = AppConfig()
+    cfg.storage_hidden_mountpoints = ["D:\\"]
+    disks = [
+        DiskSpaceInfo(device="C:\\", mountpoint="C:\\", label="Laufwerk (C:)", fstype="NTFS", total_gb=500.0, used_gb=250.0, free_gb=250.0, percent=50.0),
+        DiskSpaceInfo(device="D:\\", mountpoint="D:\\", label="Laufwerk (D:)", fstype="NTFS", total_gb=1000.0, used_gb=600.0, free_gb=400.0, percent=60.0),
+    ]
+    dlg = SettingsDialog(config=cfg, gpus=[], on_apply=lambda: None, storage_disks=disks)
+    assert dlg._storage_drive_checks["C:\\"].isChecked()
+    assert not dlg._storage_drive_checks["D:\\"].isChecked()
+
+    dlg._storage_drive_checks["C:\\"].setChecked(False)
+    dlg._storage_drive_checks["D:\\"].setChecked(True)
+    dlg._save_to_config()
+    assert cfg.storage_hidden_mountpoints == ["C:\\"]
+    dlg.close()

@@ -119,6 +119,7 @@ class AppConfig:
     storage_deduplicate_devices: bool = True
     storage_show_free_first: bool = True
     storage_show_boot: bool = False
+    storage_hidden_mountpoints: list[str] = field(default_factory=list)
 
     # Theme & Colors
     theme_name: str = DEFAULT_THEME_NAME
@@ -194,6 +195,12 @@ class AppConfig:
         self.selected_gpu_index = max(0, int(self.selected_gpu_index))
         self.gpu_temp_warn_c = max(50, min(105, int(self.gpu_temp_warn_c)))
         self.storage_warn_percent = max(50, min(99, int(self.storage_warn_percent)))
+        if not isinstance(self.storage_hidden_mountpoints, list):
+            self.storage_hidden_mountpoints = []
+        else:
+            self.storage_hidden_mountpoints = [
+                str(m) for m in self.storage_hidden_mountpoints if isinstance(m, str) and m.strip()
+            ]
 
         defaults = _default_widgets()
         for key, default_wc in defaults.items():

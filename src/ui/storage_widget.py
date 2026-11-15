@@ -195,9 +195,11 @@ class StorageWidget(BaseDesktopWidget):
         self._render_disks(self._last_disks)
 
     def _render_disks(self, disks: list[DiskSpaceInfo]) -> None:
-        self.lbl_empty.setVisible(len(disks) == 0)
+        hidden = set(self.config.storage_hidden_mountpoints)
+        visible_disks = [d for d in disks if d.mountpoint not in hidden]
+        self.lbl_empty.setVisible(len(visible_disks) == 0)
 
-        while len(self._rows) < len(disks):
+        while len(self._rows) < len(visible_disks):
             row = _DiskRowWidget(self._list_container)
             # Insert before the trailing stretch
             self._list_layout.insertWidget(self._list_layout.count() - 1, row)
@@ -207,8 +209,8 @@ class StorageWidget(BaseDesktopWidget):
         sub_font = self.make_font(8.0, bold=False)
 
         for idx, row in enumerate(self._rows):
-            if idx < len(disks):
+            if idx < len(visible_disks):
                 row.setVisible(True)
-                row.update_item(disks[idx], self.config, self.ui_scale, name_font, sub_font)
+                row.update_item(visible_disks[idx], self.config, self.ui_scale, name_font, sub_font)
             else:
                 row.setVisible(False)

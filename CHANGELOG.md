@@ -4,6 +4,10 @@ Alle relevanten Änderungen an diesem Projekt werden in dieser Datei dokumentier
 Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/),
 und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 
+## [0.14.0] - 2026-11-15
+### Added
+- **Laufwerke einzeln ausblenden (`src/config.py`, `src/ui/settings_dlg.py`, `src/ui/storage_widget.py`):** Im Einstellungs-Tab `Datenträger` werden jetzt alle erkannten Laufwerke unter `Angezeigte Laufwerke` mit Checkbox aufgelistet, sodass einzelne Laufwerke (z. B. Cloud- oder Netzlaufwerke unter Windows) gezielt abgewählt werden können (`storage_hidden_mountpoints`).
+
 ## [0.13.1] - 2026-11-14
 ### Changed
 - **Tab `Datenträger` in den Einstellungen (`src/ui/settings_dlg.py`):** Btrfs-/Windows-Hinweise aus den Checkbox-Texten entfernt, Linux-spezifische Optionen (`Identische Laufwerke zusammenfassen`, `Boot-Partitionen`) nur noch unter Linux eingeblendet und Mindestbreite des Einstellungsfensters auf `720 px` erhöht, damit alle 8 Tabs ohne Scroll-Pfeile passen.

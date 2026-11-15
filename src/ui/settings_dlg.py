@@ -32,7 +32,8 @@ from PySide6.QtWidgets import (
 from src import __version__
 from src.autostart import is_autostart_enabled, set_autostart
 from src.config import AppConfig
-from src.sensors.models import GpuInfo
+from src.sensors.disk_space import format_storage_size, read_disk_spaces
+from src.sensors.models import DiskSpaceInfo, GpuInfo
 from src.themes import THEMES
 from src.ui.color_picker import ColorButton
 from src.ui.tray import create_systembox_icon
@@ -60,11 +61,21 @@ class SettingsDialog(QDialog):
         parent: QWidget | None = None,
         initial_tab: str = "",
         disks: list[str] | None = None,
+        storage_disks: list[DiskSpaceInfo] | None = None,
     ) -> None:
         super().__init__(parent)
         self.config = config
         self._gpus = gpus
         self._disks = list(disks) if disks is not None else []
+        self._storage_disks = (
+            list(storage_disks)
+            if storage_disks is not None
+            else read_disk_spaces(
+                deduplicate_devices=self.config.storage_deduplicate_devices,
+                show_boot=self.config.storage_show_boot,
+            )
+        )
+        self._storage_drive_checks: dict[str, QCheckBox] = {}
         self._on_apply = on_apply
 
         self.setWindowTitle("SystemBox Einstellungen")
@@ -387,7 +398,41 @@ class SettingsDialog(QDialog):
         s_form.addRow("Warnschwelle Belegung:", self.spn_storage_warn)
 
         layout.addWidget(grp_st)
-        layout.addStretch(1)
+
+        grp_drives = QGroupBox("Angezeigte Laufwerke")
+        drv_outer = QVBoxLayout(grp_drives)
+        drv_outer.setContentsMargins(10, 10, 10, 10)
+        drv_scroll = QScrollArea()
+        drv_scroll.setWidgetResizable(True)
+        drv_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        drv_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        drv_inner = QWidget()
+        drv_list = QVBoxLayout(drv_inner)
+        drv_list.setContentsMargins(0, 0, 0, 0)
+        drv_list.setSpacing(6)
+
+        self._storage_drive_checks.clear()
+        seen_mounts: set[str] = set()
+        for d in self._storage_disks:
+            seen_mounts.add(d.mountpoint)
+            chk = QCheckBox(f"{d.label}  ({format_storage_size(d.total_gb)})")
+            drv_list.addWidget(chk)
+            self._storage_drive_checks[d.mountpoint] = chk
+
+        for mp in self.config.storage_hidden_mountpoints:
+            if mp not in seen_mounts:
+                chk = QCheckBox(f"{mp} (nicht verbunden)")
+                drv_list.addWidget(chk)
+                self._storage_drive_checks[mp] = chk
+
+        if not self._storage_drive_checks:
+            lbl_none = QLabel("Keine Laufwerke erkannt.")
+            drv_list.addWidget(lbl_none)
+
+        drv_list.addStretch(1)
+        drv_scroll.setWidget(drv_inner)
+        drv_outer.addWidget(drv_scroll)
+        layout.addWidget(grp_drives, 1)
         return tab
 
     def _build_theme_tab(self) -> QWidget:
@@ -600,6 +645,9 @@ class SettingsDialog(QDialog):
         self.chk_storage_dedup.setChecked(self.config.storage_deduplicate_devices)
         self.chk_storage_boot.setChecked(self.config.storage_show_boot)
         self.spn_storage_warn.setValue(self.config.storage_warn_percent)
+        hidden_mounts = set(self.config.storage_hidden_mountpoints)
+        for mp, chk in self._storage_drive_checks.items():
+            chk.setChecked(mp not in hidden_mounts)
 
         t_idx = self.cmb_theme.findText(self.config.theme_name)
         if t_idx >= 0:
@@ -639,6 +687,9 @@ class SettingsDialog(QDialog):
         self.config.storage_deduplicate_devices = self.chk_storage_dedup.isChecked()
         self.config.storage_show_boot = self.chk_storage_boot.isChecked()
         self.config.storage_warn_percent = self.spn_storage_warn.value()
+        self.config.storage_hidden_mountpoints = [
+            mp for mp, chk in self._storage_drive_checks.items() if not chk.isChecked()
+        ]
 
         self.config.theme_name = self.cmb_theme.currentText()
         self.config.primary_color = self.btn_col_primary.hex_color
@@ -696,6 +747,8 @@ class SettingsDialog(QDialog):
         self.chk_storage_dedup.setChecked(defaults.storage_deduplicate_devices)
         self.chk_storage_boot.setChecked(defaults.storage_show_boot)
         self.spn_storage_warn.setValue(defaults.storage_warn_percent)
+        for chk in self._storage_drive_checks.values():
+            chk.setChecked(True)
         t_idx = self.cmb_theme.findText(defaults.theme_name)
         if t_idx >= 0:
             self.cmb_theme.setCurrentIndex(t_idx)
