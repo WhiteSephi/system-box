@@ -63,7 +63,7 @@ class SystemBoxApp(QObject):
             ("clock", "Uhrzeit && Datum"),
             ("gpu", "GPU-Monitor"),
             ("cpu", "CPU && System"),
-            ("storage", "Datenträger && Speicher"),
+            ("storage", "Datenträger"),
         ):
             act = QAction(label, self._tray_menu, checkable=True)
             act.triggered.connect(lambda checked, k=key: self._toggle_widget_enabled(k, checked))

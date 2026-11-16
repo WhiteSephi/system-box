@@ -4,6 +4,10 @@ Alle relevanten Änderungen an diesem Projekt werden in dieser Datei dokumentier
 Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/),
 und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 
+## [0.14.1] - 2026-11-16
+### Changed
+- **Einheitliche Benennung `Datenträger` (`src/ui/storage_widget.py`, `src/ui/settings_dlg.py`, `src/app.py`):** Redundantes `Datenträger & Speicher` im Widget-Titel, Tray-Menü, Anzeige-Tab und in der Gruppenüberschrift einheitlich zu `Datenträger` verkürzt.
+
 ## [0.14.0] - 2026-11-15
 ### Added
 - **Laufwerke einzeln ausblenden (`src/config.py`, `src/ui/settings_dlg.py`, `src/ui/storage_widget.py`):** Im Einstellungs-Tab `Datenträger` werden jetzt alle erkannten Laufwerke unter `Angezeigte Laufwerke` mit Checkbox aufgelistet, sodass einzelne Laufwerke (z. B. Cloud- oder Netzlaufwerke unter Windows) gezielt abgewählt werden können (`storage_hidden_mountpoints`).

@@ -263,7 +263,7 @@ class SettingsDialog(QDialog):
             ("clock", "Uhrzeit & Datum"),
             ("gpu", "GPU-Monitor"),
             ("cpu", "CPU & System"),
-            ("storage", "Datenträger & Speicher"),
+            ("storage", "Datenträger"),
         ):
             row = QHBoxLayout()
             chk_en = QCheckBox("Aktiv")
@@ -376,7 +376,7 @@ class SettingsDialog(QDialog):
         layout = QVBoxLayout(tab)
         layout.setSpacing(10)
 
-        grp_st = QGroupBox("Datenträger && Speicher-Anzeige")
+        grp_st = QGroupBox("Datenträger-Anzeige")
         s_form = QFormLayout(grp_st)
 
         self.chk_storage_free_first = QCheckBox("Freien Speicher zuerst anzeigen („X GB frei von Y GB“)")

@@ -126,7 +126,7 @@ class StorageWidget(BaseDesktopWidget):
     """Frameless storage capacity widget showing drives and mountpoints cleanly."""
 
     def __init__(self, config: AppConfig) -> None:
-        super().__init__("storage", "Datenträger & Speicher", config)
+        super().__init__("storage", "Datenträger", config)
         self._rows: list[_DiskRowWidget] = []
         self._last_disks: list[DiskSpaceInfo] = []
         self._build_ui()
@@ -139,7 +139,7 @@ class StorageWidget(BaseDesktopWidget):
 
         hdr = QHBoxLayout()
         hdr.setSpacing(6)
-        self.lbl_title = QLabel("Datenträger & Speicher")
+        self.lbl_title = QLabel("Datenträger")
         self.btn_settings = self.create_gear_button()
         hdr.addWidget(self.lbl_title, 1)
         hdr.addWidget(self.btn_settings)
