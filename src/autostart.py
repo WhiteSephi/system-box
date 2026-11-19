@@ -6,8 +6,31 @@ import os
 from pathlib import Path
 import sys
 
+from src.config import atomic_write_text
+
 APP_NAME = "SystemBox"
 DESKTOP_FILENAME = "systembox.desktop"
+_DESKTOP_EXEC_SPECIAL = set('"\'\\$`><~|&;*?#()%')
+
+
+def _sanitize_desktop_value(value: str) -> str:
+    """Strip CR/LF characters so single-line .desktop fields cannot be broken."""
+    return value.replace("\r", "").replace("\n", "")
+
+
+def _escape_desktop_exec_arg(arg: str) -> str:
+    """Escape an argument for FreeDesktop .desktop Exec= lines."""
+    clean = _sanitize_desktop_value(arg)
+    if any(ch.isspace() or ch in _DESKTOP_EXEC_SPECIAL for ch in clean):
+        escaped = (
+            clean.replace("\\", "\\\\")
+            .replace('"', '\\"')
+            .replace("`", "\\`")
+            .replace("$", "\\$")
+            .replace("%", "%%")
+        )
+        return f'"{escaped}"'
+    return clean
 
 
 def get_project_root() -> Path:
@@ -25,18 +48,21 @@ def get_windows_autostart_cmd(project_root: Path | None = None) -> str:
     if project_root is None:
         project_root = get_project_root()
     if getattr(sys, "frozen", False):
-        return f'"{sys.executable}" --autostart'
+        exe = str(sys.executable).replace('"', "")
+        return f'"{exe}" --autostart'
     vbs_script = project_root / "start_windows.vbs"
     if vbs_script.is_file():
-        return f'wscript.exe "{vbs_script}" --autostart'
+        script_arg = str(vbs_script).replace('"', "")
+        return f'wscript.exe "{script_arg}" --autostart'
     python_exe = Path(sys.executable)
     pythonw = python_exe.with_name("pythonw.exe")
-    exe_to_use = pythonw if pythonw.is_file() else python_exe
+    exe_to_use = str(pythonw if pythonw.is_file() else python_exe).replace('"', "")
+    root_arg = str(project_root).replace('"', "")
     return (
-        f'"{exe_to_use}" -c "import sys, os; '
-        f'sys.path.insert(0, r\'{project_root}\'); '
-        f'os.chdir(r\'{project_root}\'); '
-        f'from src.main import main; sys.exit(main([\'--autostart\']))"'
+        f'"{exe_to_use}" -c '
+        f'"import os, sys; p = sys.argv[1]; sys.path.insert(0, p); os.chdir(p); '
+        f'from src.main import main; sys.exit(main([\'--autostart\']))" '
+        f'"{root_arg}"'
     )
 
 
@@ -45,15 +71,11 @@ def get_linux_autostart_cmd(project_root: Path | None = None) -> str:
     if project_root is None:
         project_root = get_project_root()
     if getattr(sys, "frozen", False):
-        exe = str(sys.executable)
-        return f'"{exe}" --autostart' if " " in exe else f"{exe} --autostart"
+        return f"{_escape_desktop_exec_arg(str(sys.executable))} --autostart"
     sh_script = project_root / "start_linux.sh"
     if sh_script.is_file():
-        script_str = str(sh_script)
-        return f'"{script_str}" --autostart' if " " in script_str else f"{script_str} --autostart"
-    python_exe = str(sys.executable)
-    exe_str = f'"{python_exe}"' if " " in python_exe else python_exe
-    return f"{exe_str} -m src.main --autostart"
+        return f"{_escape_desktop_exec_arg(str(sh_script))} --autostart"
+    return f"{_escape_desktop_exec_arg(str(sys.executable))} -m src.main --autostart"
 
 
 def is_autostart_enabled() -> bool:
@@ -106,21 +128,20 @@ def set_autostart(enabled: bool) -> bool:
     desktop_file = _get_linux_autostart_file()
     try:
         if enabled:
-            desktop_file.parent.mkdir(parents=True, exist_ok=True)
             exec_cmd = get_linux_autostart_cmd(project_root)
             content = (
                 "[Desktop Entry]\n"
                 "Type=Application\n"
                 "Name=SystemBox\n"
                 "Comment=Live System & GPU Desktop Widgets\n"
-                f"Path={project_root}\n"
+                f"Path={_sanitize_desktop_value(str(project_root))}\n"
                 f"Exec={exec_cmd}\n"
                 "Icon=utilities-system-monitor\n"
                 "Terminal=false\n"
                 "Categories=System;Monitor;Qt;\n"
                 "X-KDE-autostart-after=panel\n"
             )
-            desktop_file.write_text(content, encoding="utf-8")
+            atomic_write_text(desktop_file, content)
         elif desktop_file.is_file():
             desktop_file.unlink()
         return True
@@ -199,8 +220,7 @@ def sync_kwin_skip_taskbar_rule() -> bool:
         content = f"[General]\ncount=1\nrules={rule_name}\nOrder={rule_name}\n\n" + content
 
     try:
-        kwinrules.parent.mkdir(parents=True, exist_ok=True)
-        kwinrules.write_text(content.strip() + "\n", encoding="utf-8")
+        atomic_write_text(kwinrules, content.strip() + "\n")
     except OSError as exc:
         if sys.stderr is not None:
             print(f"[WARN] kwinrulesrc konnte nicht geschrieben werden: {exc}", file=sys.stderr)

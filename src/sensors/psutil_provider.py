@@ -42,10 +42,18 @@ class PsutilSystemProvider(SystemProvider):
         elif sys.platform == "win32":
             try:
                 ntdll = ctypes.WinDLL("ntdll.dll")
+                nt_query = ntdll.NtQuerySystemInformation
+                nt_query.argtypes = [
+                    ctypes.c_ulong,
+                    ctypes.c_void_p,
+                    ctypes.c_ulong,
+                    ctypes.POINTER(ctypes.c_ulong),
+                ]
+                nt_query.restype = ctypes.c_long
                 buf = ctypes.create_string_buffer(512)
                 ret_len = ctypes.c_ulong()
                 # SystemPerformanceInformation = 2; PageReadIoCount is uint32 at offset 84
-                if ntdll.NtQuerySystemInformation(2, buf, 512, ctypes.byref(ret_len)) == 0 and ret_len.value >= 88:
+                if nt_query(2, buf, 512, ctypes.byref(ret_len)) == 0 and ret_len.value >= 88:
                     return int(struct.unpack_from("<I", buf.raw, 84)[0])
             except Exception:
                 return None

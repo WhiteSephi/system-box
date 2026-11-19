@@ -2,13 +2,71 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, fields
 import json
 import os
 from pathlib import Path
+import re
 import sys
+import tempfile
 
 from src.themes import DEFAULT_THEME_NAME, THEMES
+
+_HEX_COLOR_RE = re.compile(r"^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$")
+
+
+def _safe_int(value: object, default: int, low: int | None = None, high: int | None = None) -> int:
+    """Safely coerce an integer value (rejecting booleans) and clamp it to optional bounds."""
+    if isinstance(value, bool):
+        num = default
+    else:
+        try:
+            num = int(value)  # type: ignore[arg-type]
+        except (TypeError, ValueError):
+            num = default
+    if low is not None:
+        num = max(low, num)
+    if high is not None:
+        num = min(high, num)
+    return num
+
+
+def _safe_color(value: object, default: str) -> str:
+    """Validate that value is a strict #RRGGBB / #RRGGBBAA hex color to prevent QSS injection."""
+    if isinstance(value, str):
+        cleaned = value.strip()
+        if _HEX_COLOR_RE.fullmatch(cleaned):
+            return cleaned.upper()
+    return default
+
+
+def atomic_write_text(target: Path, content: str) -> None:
+    """Write UTF-8 text atomically via a temporary file in the same directory and os.replace."""
+    target.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=target.parent,
+            prefix=f".{target.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as tmp:
+            tmp_path = Path(tmp.name)
+            tmp.write(content)
+            tmp.flush()
+            os.fsync(tmp.fileno())
+        os.replace(tmp_path, target)
+    except Exception as exc:
+        if tmp_path is not None and tmp_path.exists():
+            try:
+                tmp_path.unlink()
+            except OSError:
+                pass
+        if isinstance(exc, OSError):
+            raise
+        raise OSError(str(exc)) from exc
 
 
 def _log_warn(msg: str) -> None:
@@ -60,14 +118,34 @@ class WidgetConfig:
     def sanitize(self, default_width: int = 320, default_height: int = 240) -> None:
         """Clamp and validate widget configuration values."""
         self.enabled = bool(self.enabled)
-        self.width = max(140, min(1600, int(self.width or default_width)))
-        self.height = max(60, min(1400, int(self.height or default_height)))
-        self.pos_x = int(self.pos_x) if isinstance(self.pos_x, (int, float)) else -1
-        self.pos_y = int(self.pos_y) if isinstance(self.pos_y, (int, float)) else -1
+        self.width = _safe_int(self.width or default_width, default_width, 140, 1600)
+        self.height = _safe_int(self.height or default_height, default_height, 60, 1400)
+        self.pos_x = _safe_int(self.pos_x, -1)
+        self.pos_y = _safe_int(self.pos_y, -1)
         if self.scale_percent is not None:
-            self.scale_percent = max(70, min(300, int(self.scale_percent)))
+            if isinstance(self.scale_percent, bool):
+                self.scale_percent = None
+            else:
+                try:
+                    int(self.scale_percent)
+                except (TypeError, ValueError):
+                    self.scale_percent = None
+                else:
+                    self.scale_percent = _safe_int(self.scale_percent, 100, 70, 300)
         if self.opacity is not None:
-            self.opacity = max(20, min(100, int(self.opacity)))
+            if isinstance(self.opacity, bool):
+                self.opacity = None
+            else:
+                try:
+                    int(self.opacity)
+                except (TypeError, ValueError):
+                    self.opacity = None
+                else:
+                    self.opacity = _safe_int(self.opacity, 85, 20, 100)
+        if self.always_on_top is not None:
+            self.always_on_top = bool(self.always_on_top)
+        if self.locked_pos is not None:
+            self.locked_pos = bool(self.locked_pos)
 
 
 def _default_widgets() -> dict[str, WidgetConfig]:
@@ -187,20 +265,55 @@ class AppConfig:
 
     def sanitize(self) -> None:
         """Validate, coerce types and clamp ranges for all configuration attributes."""
-        self.refresh_interval_ms = max(500, min(5000, int(self.refresh_interval_ms)))
-        self.history_seconds = max(15, min(300, int(self.history_seconds)))
-        self.ui_scale_percent = max(70, min(300, int(self.ui_scale_percent)))
-        self.opacity = max(20, min(100, int(self.opacity)))
-        self.start_delay_sec = max(0, min(60, int(self.start_delay_sec)))
-        self.selected_gpu_index = max(0, int(self.selected_gpu_index))
-        self.gpu_temp_warn_c = max(50, min(105, int(self.gpu_temp_warn_c)))
-        self.storage_warn_percent = max(50, min(99, int(self.storage_warn_percent)))
+        self.refresh_interval_ms = _safe_int(self.refresh_interval_ms, 1000, 500, 5000)
+        self.history_seconds = _safe_int(self.history_seconds, 60, 15, 300)
+        self.ui_scale_percent = _safe_int(self.ui_scale_percent, 100, 70, 300)
+        self.opacity = _safe_int(self.opacity, 85, 20, 100)
+        self.always_on_top = bool(self.always_on_top)
+        self.locked_pos = bool(self.locked_pos)
+        self.snap_to_edges = bool(self.snap_to_edges)
+        self.autostart = bool(self.autostart)
+        self.start_delay_sec = _safe_int(self.start_delay_sec, 0, 0, 60)
+
+        self.settings_pos_x = _safe_int(self.settings_pos_x, -1)
+        self.settings_pos_y = _safe_int(self.settings_pos_y, -1)
+        self.settings_width = _safe_int(self.settings_width, 680, 400, 3000)
+        self.settings_height = _safe_int(self.settings_height, 540, 300, 2200)
+
+        self.selected_gpu_index = _safe_int(self.selected_gpu_index, 0, 0, None)
+        self.clock_show_seconds = bool(self.clock_show_seconds)
+        self.clock_show_uptime = bool(self.clock_show_uptime)
+        self.clock_24h = bool(self.clock_24h)
+        self.cpu_show_max_core = bool(self.cpu_show_max_core)
+        self.cpu_show_disk_io = bool(self.cpu_show_disk_io)
+        self.cpu_disk_device = self.cpu_disk_device if isinstance(self.cpu_disk_device, str) else ""
+        self.cpu_show_page_faults = bool(self.cpu_show_page_faults)
+        self.gpu_show_power_fan = bool(self.gpu_show_power_fan)
+        self.gpu_show_mem_clock = bool(self.gpu_show_mem_clock)
+        self.gpu_show_driver_version = bool(self.gpu_show_driver_version)
+        self.gpu_temp_warn_c = _safe_int(self.gpu_temp_warn_c, 80, 50, 105)
+        self.storage_warn_percent = _safe_int(self.storage_warn_percent, 85, 50, 99)
+        self.storage_deduplicate_devices = bool(self.storage_deduplicate_devices)
+        self.storage_show_free_first = bool(self.storage_show_free_first)
+        self.storage_show_boot = bool(self.storage_show_boot)
         if not isinstance(self.storage_hidden_mountpoints, list):
             self.storage_hidden_mountpoints = []
         else:
             self.storage_hidden_mountpoints = [
                 str(m) for m in self.storage_hidden_mountpoints if isinstance(m, str) and m.strip()
             ]
+
+        self.theme_name = self.theme_name if isinstance(self.theme_name, str) else DEFAULT_THEME_NAME
+        theme_defaults = THEMES[DEFAULT_THEME_NAME]
+        self.primary_color = _safe_color(self.primary_color, theme_defaults["primary"])
+        self.secondary_color = _safe_color(self.secondary_color, theme_defaults["secondary"])
+        self.temp_color = _safe_color(self.temp_color, theme_defaults["temp"])
+        self.vram_color = _safe_color(self.vram_color, theme_defaults["vram"])
+        self.background_color = _safe_color(self.background_color, theme_defaults["bg"])
+        self.border_color = _safe_color(self.border_color, theme_defaults["border"])
+        self.grid_color = _safe_color(self.grid_color, theme_defaults["grid"])
+        self.title_color = _safe_color(self.title_color, theme_defaults["title"])
+        self.muted_color = _safe_color(self.muted_color, theme_defaults["muted"])
 
         defaults = _default_widgets()
         for key, default_wc in defaults.items():
@@ -230,7 +343,14 @@ class AppConfig:
             cfg.sanitize()
             return cfg
 
+        if not isinstance(raw, dict):
+            _log_warn("[WARN] Ungültiges config.json-Format (kein Objekt), nutze Defaults.")
+            cfg = cls()
+            cfg.sanitize()
+            return cfg
+
         cfg = cls()
+        valid_fields = {f.name for f in fields(cls)} - {"widgets"}
         for key, value in raw.items():
             if key == "widgets" and isinstance(value, dict):
                 loaded_widgets: dict[str, WidgetConfig] = {}
@@ -238,26 +358,25 @@ class AppConfig:
                 for w_key, w_default in defaults.items():
                     w_raw = value.get(w_key)
                     if isinstance(w_raw, dict):
-                        valid_fields = {f.name for f in w_default.__dataclass_fields__.values()}
-                        filtered = {k: v for k, v in w_raw.items() if k in valid_fields}
+                        valid_w_fields = {f.name for f in fields(w_default)}
+                        filtered = {k: v for k, v in w_raw.items() if k in valid_w_fields}
                         loaded_widgets[w_key] = WidgetConfig(**filtered)
                     else:
                         loaded_widgets[w_key] = w_default
                 cfg.widgets = loaded_widgets
-            elif hasattr(cfg, key):
+            elif key in valid_fields:
                 setattr(cfg, key, value)
 
         cfg.sanitize()
         return cfg
 
     def save(self, path: Path | None = None) -> bool:
-        """Persist configuration to JSON file."""
+        """Persist configuration to JSON file atomically."""
         self.sanitize()
         target = path or self.config_path()
         try:
-            target.parent.mkdir(parents=True, exist_ok=True)
             payload = asdict(self)
-            target.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+            atomic_write_text(target, json.dumps(payload, indent=2, ensure_ascii=False))
             return True
         except OSError as exc:
             _log_warn(f"[WARN] Konnte config.json nicht speichern: {exc}")

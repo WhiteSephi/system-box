@@ -5,7 +5,8 @@ WshShell.CurrentDirectory = strDir
 strArgs = ""
 If WScript.Arguments.Count > 0 Then
     For i = 0 To WScript.Arguments.Count - 1
-        strArgs = strArgs & " """ & WScript.Arguments(i) & """"
+        strArg = Replace(WScript.Arguments(i), """", "\""")
+        strArgs = strArgs & " """ & strArg & """"
     Next
 End If
 strPythonw = strDir & "\.venv\Scripts\pythonw.exe"

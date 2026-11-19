@@ -61,3 +61,22 @@ def test_sync_kwin_skip_taskbar_rule_preserves_existing(tmp_path: Path) -> None:
     assert "skiptaskbar=true" in updated
     assert "skiptaskbarrule=2" in updated
     assert "TrafficBox-Position,SystemBox-Taskbar" in updated
+
+
+def test_autostart_path_escaping(tmp_path: Path) -> None:
+    sub = tmp_path / "O'Brien's Dir $100%"
+    sub.mkdir(parents=True, exist_ok=True)
+
+    win_cmd = get_windows_autostart_cmd(sub)
+    assert "sys.argv[1]" in win_cmd
+    # Path must NOT be interpolated inside the -c Python code string
+    code_part, trailing = win_cmd.rsplit("sys.exit(main(['--autostart']))\"", 1)
+    assert "O'Brien" not in code_part
+    assert f'"{sub}"' in trailing
+
+    sh = sub / "start_linux.sh"
+    sh.write_text("", encoding="utf-8")
+    lin_cmd = get_linux_autostart_cmd(sub)
+    assert "\\$100%%" in lin_cmd
+    assert lin_cmd.startswith('"')
+    assert lin_cmd.endswith(' --autostart')

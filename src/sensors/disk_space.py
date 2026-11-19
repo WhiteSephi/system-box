@@ -61,9 +61,25 @@ def _get_windows_volume_label(mountpoint: str) -> str:
     if sys.platform != "win32":
         return ""
     try:
+        from ctypes import wintypes
+
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        get_vol_info = kernel32.GetVolumeInformationW
+        get_vol_info.argtypes = [
+            wintypes.LPCWSTR,
+            wintypes.LPWSTR,
+            wintypes.DWORD,
+            ctypes.POINTER(wintypes.DWORD),
+            ctypes.POINTER(wintypes.DWORD),
+            ctypes.POINTER(wintypes.DWORD),
+            wintypes.LPWSTR,
+            wintypes.DWORD,
+        ]
+        get_vol_info.restype = wintypes.BOOL
+
         buf = ctypes.create_unicode_buffer(261)
-        ok = ctypes.windll.kernel32.GetVolumeInformationW(
-            ctypes.c_wchar_p(mountpoint),
+        ok = get_vol_info(
+            mountpoint,
             buf,
             len(buf),
             None,

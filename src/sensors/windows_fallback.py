@@ -12,6 +12,8 @@ import sys
 from src.sensors.base import GpuProvider
 from src.sensors.models import GpuInfo, GpuSample
 
+_HWINFO_MAX_SHM_BYTES = 16 * 1024 * 1024
+
 
 def read_hwinfo_cpu_temp() -> tuple[float | None, str | None]:
     """Optionally read CPU temperature from HWiNFO64 shared memory if running (no admin)."""
@@ -21,23 +23,25 @@ def read_hwinfo_cpu_temp() -> tuple[float | None, str | None]:
         # HWiNFO64 Sensor Shared Memory header is 44 bytes:
         # sig(4s), ver(I), rev(I), poll_time(q), offset_sensor(I), size_sensor(I),
         # num_sensor(I), offset_reading(I), size_reading(I), num_reading(I)
-        shm = mmap.mmap(-1, 44, tagname="Global\\HWiNFO_SENS_SM2", access=mmap.ACCESS_READ)
+        with mmap.mmap(-1, 44, tagname="Global\\HWiNFO_SENS_SM2", access=mmap.ACCESS_READ) as shm:
+            header = shm.read(44)
     except OSError:
         return None, None
 
     try:
-        header = shm.read(44)
         if len(header) < 44 or header[:4] != b"HWiS":
             return None, None
         _, _, _, _, _, _, _, off_read, sz_read, num_read = struct.unpack("<4sIIqIIIIII", header)
-        shm.close()
-        total_size = off_read + sz_read * num_read
-        if total_size <= 44 or sz_read < 280:
+        if not (44 <= off_read <= _HWINFO_MAX_SHM_BYTES and 280 <= sz_read <= 65536 and 1 <= num_read <= 4096):
             return None, None
-        shm_full = mmap.mmap(-1, total_size, tagname="Global\\HWiNFO_SENS_SM2", access=mmap.ACCESS_READ)
-        try:
+        total_size = off_read + sz_read * num_read
+        if total_size <= 44 or total_size > _HWINFO_MAX_SHM_BYTES:
+            return None, None
+        with mmap.mmap(-1, total_size, tagname="Global\\HWiNFO_SENS_SM2", access=mmap.ACCESS_READ) as shm_full:
             for i in range(min(num_read, 512)):
                 pos = off_read + i * sz_read
+                if pos + sz_read > total_size:
+                    break
                 shm_full.seek(pos)
                 rec = shm_full.read(sz_read)
                 if len(rec) < 280:
@@ -51,13 +55,8 @@ def read_hwinfo_cpu_temp() -> tuple[float | None, str | None]:
                     val = struct.unpack("<d", rec[268:276])[0]
                     if 5.0 < val < 125.0:
                         return round(float(val), 1), "HWiNFO"
-        finally:
-            shm_full.close()
     except Exception:
-        try:
-            shm.close()
-        except Exception:
-            pass
+        pass
     return None, None
 
 
@@ -81,19 +80,40 @@ class WindowsPdhGpuProvider(GpuProvider):
     def _init_pdh(self, skip_nvidia: bool) -> None:
         try:
             pdh = ctypes.WinDLL("pdh.dll")
+            pdh.PdhOpenQueryW.argtypes = [wintypes.LPCWSTR, ctypes.c_void_p, ctypes.POINTER(wintypes.HANDLE)]
+            pdh.PdhOpenQueryW.restype = wintypes.LONG
+            pdh.PdhAddEnglishCounterW.argtypes = [
+                wintypes.HANDLE,
+                wintypes.LPCWSTR,
+                ctypes.c_void_p,
+                ctypes.POINTER(wintypes.HANDLE),
+            ]
+            pdh.PdhAddEnglishCounterW.restype = wintypes.LONG
+            pdh.PdhCollectQueryData.argtypes = [wintypes.HANDLE]
+            pdh.PdhCollectQueryData.restype = wintypes.LONG
+            pdh.PdhGetFormattedCounterValue.argtypes = [
+                wintypes.HANDLE,
+                wintypes.DWORD,
+                ctypes.POINTER(wintypes.DWORD),
+                ctypes.POINTER(_PDH_FMT_COUNTERVALUE_DOUBLE),
+            ]
+            pdh.PdhGetFormattedCounterValue.restype = wintypes.LONG
+            pdh.PdhCloseQuery.argtypes = [wintypes.HANDLE]
+            pdh.PdhCloseQuery.restype = wintypes.LONG
+
             self._pdh = pdh
-            if pdh.PdhOpenQueryW(None, 0, ctypes.byref(self._query)) != 0:
+            if pdh.PdhOpenQueryW(None, None, ctypes.byref(self._query)) != 0:
                 return
             rc1 = pdh.PdhAddEnglishCounterW(
                 self._query,
                 "\\GPU Engine(*)\\Utilization Percentage",
-                0,
+                None,
                 ctypes.byref(self._util_counter),
             )
             rc2 = pdh.PdhAddEnglishCounterW(
                 self._query,
                 "\\GPU Adapter Memory(*)\\Dedicated Usage",
-                0,
+                None,
                 ctypes.byref(self._mem_counter),
             )
             if rc1 != 0 and rc2 != 0:
