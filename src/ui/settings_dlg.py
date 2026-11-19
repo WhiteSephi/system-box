@@ -7,9 +7,10 @@ import platform
 import sys
 
 from PySide6.QtCore import QPoint, QRect, QSize, Qt, QUrl, qVersion
-from PySide6.QtGui import QCloseEvent, QDesktopServices, QHideEvent
+from PySide6.QtGui import QCloseEvent, QDesktopServices, QHideEvent, QPalette
 from PySide6.QtWidgets import (
     QApplication,
+    QButtonGroup,
     QCheckBox,
     QComboBox,
     QDialog,
@@ -24,6 +25,7 @@ from PySide6.QtWidgets import (
     QSizePolicy,
     QSlider,
     QSpinBox,
+    QStackedWidget,
     QTabWidget,
     QVBoxLayout,
     QWidget,
@@ -45,12 +47,12 @@ class SettingsDialog(QDialog):
     TAB_KEYS = {
         "general": 0,
         "display": 1,
+        "theme": 1,
         "clock": 2,
         "gpu": 3,
         "cpu": 4,
         "storage": 5,
-        "theme": 6,
-        "about": 7,
+        "about": 6,
     }
 
     def __init__(
@@ -93,10 +95,14 @@ class SettingsDialog(QDialog):
         idx = self.TAB_KEYS.get(tab_key)
         if idx is not None and 0 <= idx < self.tabs.count():
             self.tabs.setCurrentIndex(idx)
+            if tab_key == "display":
+                self._set_display_subpage(0)
+            elif tab_key == "theme":
+                self._set_display_subpage(1)
 
     def _restore_geometry(self) -> None:
         """Restore window position and size if valid on current screens."""
-        cfg_w = max(680, self.config.settings_width)
+        cfg_w = max(720, self.config.settings_width)
         cfg_h = max(620, self.config.settings_height)
         self.resize(cfg_w, cfg_h)
 
@@ -148,12 +154,11 @@ class SettingsDialog(QDialog):
         root.addWidget(self.tabs, 1)
 
         self.tabs.addTab(self._wrap_in_scroll(self._build_general_tab()), "Allgemein")
-        self.tabs.addTab(self._wrap_in_scroll(self._build_display_tab()), "Anzeige")
-        self.tabs.addTab(self._wrap_in_scroll(self._build_clock_tab()), "Uhrzeit && Datum")
-        self.tabs.addTab(self._wrap_in_scroll(self._build_gpu_tab()), "GPU-Monitor")
-        self.tabs.addTab(self._wrap_in_scroll(self._build_cpu_tab()), "CPU && System")
+        self.tabs.addTab(self._build_display_container_tab(), "Anzeige")
+        self.tabs.addTab(self._wrap_in_scroll(self._build_clock_tab()), "Uhrzeit")
+        self.tabs.addTab(self._wrap_in_scroll(self._build_gpu_tab()), "GPU")
+        self.tabs.addTab(self._wrap_in_scroll(self._build_cpu_tab()), "System")
         self.tabs.addTab(self._wrap_in_scroll(self._build_storage_tab()), "Datenträger")
-        self.tabs.addTab(self._wrap_in_scroll(self._build_theme_tab()), "Design && Themes")
         self.tabs.addTab(self._wrap_in_scroll(self._build_about_tab()), "Über")
 
         # Action Buttons
@@ -203,8 +208,124 @@ class SettingsDialog(QDialog):
         w_lay.addWidget(self.chk_snap_edges)
         layout.addWidget(grp_win)
 
+        grp_poll = QGroupBox("Abfrage && Verlauf")
+        p_form = QFormLayout(grp_poll)
+        self.spn_interval = QSpinBox()
+        self.spn_interval.setRange(500, 5000)
+        self.spn_interval.setSingleStep(250)
+        self.spn_interval.setSuffix(" ms")
+        p_form.addRow("Aktualisierungs-Intervall:", self.spn_interval)
+
+        self.spn_history = QSpinBox()
+        self.spn_history.setRange(15, 300)
+        self.spn_history.setSuffix(" Samples")
+        p_form.addRow("Graph-Verlaufslänge:", self.spn_history)
+        layout.addWidget(grp_poll)
+
         layout.addStretch(1)
         return tab
+
+    def _build_display_container_tab(self) -> QWidget:
+        """Build the unified Display tab with a segmented subpage switcher."""
+        container = QWidget()
+        layout = QVBoxLayout(container)
+        layout.setContentsMargins(0, 8, 0, 0)
+        layout.setSpacing(4)
+
+        bar_row = QHBoxLayout()
+        bar_row.setContentsMargins(9, 0, 9, 0)
+
+        seg_bar = QFrame()
+        seg_bar.setObjectName("displaySegmentBar")
+        seg_layout = QHBoxLayout(seg_bar)
+        seg_layout.setContentsMargins(3, 3, 3, 3)
+        seg_layout.setSpacing(3)
+
+        self.btn_sub_display = QPushButton("Darstellung && Widgets")
+        self.btn_sub_display.setCheckable(True)
+        self.btn_sub_display.setChecked(True)
+        self.btn_sub_display.setMinimumWidth(165)
+        self.btn_sub_display.setCursor(Qt.CursorShape.PointingHandCursor)
+
+        self.btn_sub_theme = QPushButton("Themes && Farben")
+        self.btn_sub_theme.setCheckable(True)
+        self.btn_sub_theme.setMinimumWidth(165)
+        self.btn_sub_theme.setCursor(Qt.CursorShape.PointingHandCursor)
+
+        self._display_seg_group = QButtonGroup(self)
+        self._display_seg_group.setExclusive(True)
+        self._display_seg_group.addButton(self.btn_sub_display, 0)
+        self._display_seg_group.addButton(self.btn_sub_theme, 1)
+        self._display_seg_group.idClicked.connect(self._set_display_subpage)
+
+        seg_layout.addWidget(self.btn_sub_display)
+        seg_layout.addWidget(self.btn_sub_theme)
+        self._style_display_segment_bar(seg_bar)
+
+        bar_row.addWidget(seg_bar)
+        bar_row.addStretch(1)
+        layout.addLayout(bar_row)
+
+        self.display_stack = QStackedWidget()
+        self.display_stack.addWidget(self._wrap_in_scroll(self._build_display_tab()))
+        self.display_stack.addWidget(self._wrap_in_scroll(self._build_theme_tab()))
+        layout.addWidget(self.display_stack, 1)
+        return container
+
+    def _style_display_segment_bar(self, bar: QFrame) -> None:
+        """Apply palette-aware high-contrast QSS to the segmented subpage bar."""
+        is_dark = self.palette().color(QPalette.ColorRole.Window).lightness() < 128
+        if is_dark:
+            track_bg = "rgba(255, 255, 255, 12)"
+            track_border = "rgba(255, 255, 255, 38)"
+            btn_fg = "rgba(255, 255, 255, 195)"
+            hover_bg = "rgba(255, 255, 255, 20)"
+            checked_bg = "palette(button)"
+            checked_fg = "palette(button-text)"
+        else:
+            track_bg = "rgba(0, 0, 0, 12)"
+            track_border = "rgba(0, 0, 0, 35)"
+            btn_fg = "rgba(0, 0, 0, 195)"
+            hover_bg = "rgba(0, 0, 0, 18)"
+            checked_bg = "palette(base)"
+            checked_fg = "palette(window-text)"
+
+        bar.setStyleSheet(
+            f"""
+            QFrame#displaySegmentBar {{
+                background-color: {track_bg};
+                border: 1px solid {track_border};
+                border-radius: 7px;
+            }}
+            QFrame#displaySegmentBar QPushButton {{
+                background: transparent;
+                color: {btn_fg};
+                border: 1px solid transparent;
+                border-radius: 5px;
+                padding: 5px 14px;
+            }}
+            QFrame#displaySegmentBar QPushButton:hover:!checked {{
+                background-color: {hover_bg};
+                color: palette(window-text);
+            }}
+            QFrame#displaySegmentBar QPushButton:checked {{
+                background-color: {checked_bg};
+                color: {checked_fg};
+                border: 1px solid palette(highlight);
+                font-weight: 600;
+            }}
+            """
+        )
+
+    def _set_display_subpage(self, index: int) -> None:
+        """Switch subpage inside the Display tab and sync segmented toggle state."""
+        if index not in (0, 1):
+            return
+        self.display_stack.setCurrentIndex(index)
+        if index == 0:
+            self.btn_sub_display.setChecked(True)
+        else:
+            self.btn_sub_theme.setChecked(True)
 
     def _build_display_tab(self) -> QWidget:
         tab = QWidget()
@@ -281,20 +402,6 @@ class SettingsDialog(QDialog):
             self._widget_checks[key] = (chk_en, spn_sc)
 
         layout.addWidget(grp_widgets)
-
-        grp_poll = QGroupBox("Abfrage && Verlauf")
-        p_form = QFormLayout(grp_poll)
-        self.spn_interval = QSpinBox()
-        self.spn_interval.setRange(500, 5000)
-        self.spn_interval.setSingleStep(250)
-        self.spn_interval.setSuffix(" ms")
-        p_form.addRow("Aktualisierungs-Intervall:", self.spn_interval)
-
-        self.spn_history = QSpinBox()
-        self.spn_history.setRange(15, 300)
-        self.spn_history.setSuffix(" Samples")
-        p_form.addRow("Graph-Verlaufslänge:", self.spn_history)
-        layout.addWidget(grp_poll)
 
         layout.addStretch(1)
         return tab

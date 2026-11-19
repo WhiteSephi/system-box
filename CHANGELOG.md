@@ -4,6 +4,13 @@ Alle relevanten Änderungen an diesem Projekt werden in dieser Datei dokumentier
 Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/),
 und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 
+## [0.14.3] - 2026-11-19
+### Changed
+- **Kompakte Einstellungs-Tabs & gebündelter `Anzeige`-Tab (`src/ui/settings_dlg.py`):**
+  - Tab-Leiste von 8 auf 7 kompakte Tabs reduziert (`Allgemein`, `Anzeige`, `Uhrzeit`, `GPU`, `System`, `Datenträger`, `Über`), sodass alle Tabs ab `720 px` Breite ohne horizontale Scrollpfeile sichtbar sind.
+  - `Anzeige` und `Design & Themes` über eine schlanke Segmented-Umschaltleiste (`Darstellung & Widgets` | `Themes & Farben`) in `Anzeige` zusammengeführt; Direktsprünge über `select_tab("display")` bzw. `select_tab("theme")` wählen direkt die passende Unterseite.
+  - Bereich `Abfrage & Verlauf` (`Aktualisierungs-Intervall` und `Graph-Verlaufslänge`) thematisch nach `Allgemein` verschoben.
+
 ## [0.14.2] - 2026-11-19
 ### Fixed
 - **Sicherheits- & Stabilitäts-Härtung (`src/config.py`, `src/autostart.py`, `start_windows.vbs`, `src/sensors/disk_space.py`, `src/sensors/psutil_provider.py`, `src/sensors/windows_fallback.py`):**

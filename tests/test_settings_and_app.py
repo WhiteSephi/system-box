@@ -146,3 +146,58 @@ def test_app_tray_menu_escaping_and_visibility() -> None:
         controller._poll_timer.stop()
         for w in controller._widgets.values():
             w.close()
+
+
+def test_settings_dialog_compact_tabs_and_display_subpages() -> None:
+    app = _ensure_qapp()
+    cfg = AppConfig()
+    cfg.save = lambda: None
+
+    dlg = SettingsDialog(cfg, [], lambda: None)
+    dlg.resize(720, 520)
+    dlg.show()
+    app.processEvents()
+
+    tab_titles = [dlg.tabs.tabText(i) for i in range(dlg.tabs.count())]
+    assert tab_titles == [
+        "Allgemein",
+        "Anzeige",
+        "Uhrzeit",
+        "GPU",
+        "System",
+        "Datenträger",
+        "Über",
+    ]
+    assert dlg.tabs.tabBar().sizeHint().width() <= dlg.tabs.width()
+
+    dlg.select_tab("theme")
+    assert dlg.tabs.currentIndex() == 1
+    assert dlg.display_stack.currentIndex() == 1
+    assert dlg.btn_sub_theme.isChecked()
+
+    dlg.select_tab("display")
+    assert dlg.tabs.currentIndex() == 1
+    assert dlg.display_stack.currentIndex() == 0
+    assert dlg.btn_sub_display.isChecked()
+
+    dlg.btn_sub_theme.click()
+    assert dlg.display_stack.currentIndex() == 1
+    dlg.btn_sub_display.click()
+    assert dlg.display_stack.currentIndex() == 0
+
+    for key, expected_idx in (
+        ("clock", 2),
+        ("gpu", 3),
+        ("cpu", 4),
+        ("storage", 5),
+        ("about", 6),
+    ):
+        dlg.select_tab(key)
+        assert dlg.tabs.currentIndex() == expected_idx
+
+    general_tab = dlg.tabs.widget(0)
+    assert dlg.spn_interval.parentWidget() is not None
+    assert general_tab.isAncestorOf(dlg.spn_interval)
+    assert general_tab.isAncestorOf(dlg.spn_history)
+
+    dlg.close()
