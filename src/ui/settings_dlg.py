@@ -145,6 +145,15 @@ class SettingsDialog(QDialog):
         scroll.setWidget(widget)
         return scroll
 
+    @staticmethod
+    def _set_tooltip(widget: QWidget, text: str, form: QFormLayout | None = None) -> None:
+        """Assign a concise tooltip to a control and its associated form label."""
+        widget.setToolTip(text)
+        if form is not None:
+            label = form.labelForField(widget)
+            if label is not None:
+                label.setToolTip(text)
+
     def _build_ui(self) -> None:
         root = QVBoxLayout(self)
         root.setContentsMargins(12, 12, 12, 12)
@@ -164,15 +173,19 @@ class SettingsDialog(QDialog):
         # Action Buttons
         btn_row = QHBoxLayout()
         btn_reset = QPushButton("Reset (Standardwerte)")
+        btn_reset.setToolTip("Setzt alle Einstellungen im Dialog auf die Standardwerte zurück.")
         btn_reset.clicked.connect(self._reset_defaults)
         btn_row.addWidget(btn_reset)
         btn_row.addStretch(1)
         btn_apply = QPushButton("Übernehmen")
+        btn_apply.setToolTip("Speichert die Änderungen und wendet sie sofort auf alle Widgets an.")
         btn_apply.clicked.connect(self._apply_changes)
         btn_ok = QPushButton("OK")
+        btn_ok.setToolTip("Speichert die Änderungen, wendet sie an und schließt den Dialog.")
         btn_ok.setDefault(True)
         btn_ok.clicked.connect(self._accept_changes)
         btn_cancel = QPushButton("Abbrechen")
+        btn_cancel.setToolTip("Verwirft ungespeicherte Änderungen und schließt den Dialog.")
         btn_cancel.clicked.connect(self.reject)
         btn_row.addWidget(btn_apply)
         btn_row.addWidget(btn_ok)
@@ -187,22 +200,43 @@ class SettingsDialog(QDialog):
         # Autostart (aligned with TrafficBox)
         grp_auto = QGroupBox("Systemstart && Autostart")
         a_form = QFormLayout(grp_auto)
-        self.chk_autostart = QCheckBox("Autostart mit dem Betriebssystem aktivieren")
+        self.chk_autostart = QCheckBox("Mit Systemstart automatisch starten")
+        self._set_tooltip(
+            self.chk_autostart,
+            "Startet SystemBox automatisch nach der Anmeldung am Betriebssystem.",
+        )
         a_form.addRow("", self.chk_autostart)
 
         self.spn_start_delay = QSpinBox()
         self.spn_start_delay.setRange(0, 60)
         self.spn_start_delay.setSuffix(" Sek.")
-        a_form.addRow("Startverzögerung beim Booten:", self.spn_start_delay)
+        a_form.addRow("Startverzögerung:", self.spn_start_delay)
+        self._set_tooltip(
+            self.spn_start_delay,
+            "Wartezeit nach dem Systemstart, bevor die Widgets angezeigt werden (0–60 Sek.).",
+            a_form,
+        )
         layout.addWidget(grp_auto)
 
         # Window behavior & position (aligned with TrafficBox)
         grp_win = QGroupBox("Fenster-Verhalten && Position")
         w_lay = QVBoxLayout(grp_win)
         w_lay.setSpacing(6)
-        self.chk_always_on_top = QCheckBox("Alle Widgets immer im Vordergrund halten")
-        self.chk_locked_pos = QCheckBox("Positionen aller Widgets sperren")
-        self.chk_snap_edges = QCheckBox("Magnetisches Einrasten an Bildschirmrändern && Widgets")
+        self.chk_always_on_top = QCheckBox("Immer im Vordergrund")
+        self._set_tooltip(
+            self.chk_always_on_top,
+            "Hält alle Desktop-Widgets dauerhaft über anderen Fenstern.",
+        )
+        self.chk_locked_pos = QCheckBox("Widget-Positionen sperren")
+        self._set_tooltip(
+            self.chk_locked_pos,
+            "Verhindert versehentliches Verschieben der Widgets per Maus.",
+        )
+        self.chk_snap_edges = QCheckBox("An Rändern && Widgets einrasten")
+        self._set_tooltip(
+            self.chk_snap_edges,
+            "Richtet Widgets beim Verschieben magnetisch an Bildschirmrändern und anderen Widgets aus.",
+        )
         w_lay.addWidget(self.chk_always_on_top)
         w_lay.addWidget(self.chk_locked_pos)
         w_lay.addWidget(self.chk_snap_edges)
@@ -215,11 +249,21 @@ class SettingsDialog(QDialog):
         self.spn_interval.setSingleStep(250)
         self.spn_interval.setSuffix(" ms")
         p_form.addRow("Aktualisierungs-Intervall:", self.spn_interval)
+        self._set_tooltip(
+            self.spn_interval,
+            "Abstand zwischen zwei Sensor-Abfragen in Millisekunden (500–5000 ms).",
+            p_form,
+        )
 
         self.spn_history = QSpinBox()
         self.spn_history.setRange(15, 300)
         self.spn_history.setSuffix(" Samples")
         p_form.addRow("Graph-Verlaufslänge:", self.spn_history)
+        self._set_tooltip(
+            self.spn_history,
+            "Anzahl der gespeicherten Messpunkte für die Verlaufsgraphen (15–300 Samples).",
+            p_form,
+        )
         layout.addWidget(grp_poll)
 
         layout.addStretch(1)
@@ -363,6 +407,12 @@ class SettingsDialog(QDialog):
         scale_row.addWidget(self.spn_scale, 0)
         scale_row.addWidget(btn_scale_100, 0)
         form.addRow("UI-Skalierung:", scale_row)
+        scale_tip = "Globale Schrift- und Widget-Größe in Prozent (70–300 %)."
+        self._set_tooltip(self.sld_scale, scale_tip)
+        self._set_tooltip(self.spn_scale, scale_tip)
+        self._set_tooltip(btn_scale_100, "Setzt die globale UI-Skalierung auf 100 % zurück.")
+        if (lbl_scale := form.labelForField(scale_row)) is not None:
+            lbl_scale.setToolTip(scale_tip)
 
         op_row = QHBoxLayout()
         self.sld_opacity = QSlider(Qt.Orientation.Horizontal)
@@ -373,6 +423,11 @@ class SettingsDialog(QDialog):
         op_row.addWidget(self.sld_opacity, 1)
         op_row.addWidget(self.lbl_opacity_val)
         form.addRow("Deckkraft:", op_row)
+        opacity_tip = "Transparenz der Widget-Hintergründe (20–100 %)."
+        self._set_tooltip(self.sld_opacity, opacity_tip)
+        self._set_tooltip(self.lbl_opacity_val, opacity_tip)
+        if (lbl_opacity := form.labelForField(op_row)) is not None:
+            lbl_opacity.setToolTip(opacity_tip)
         layout.addWidget(grp_global)
 
         # Per-widget toggles & scaling
@@ -388,12 +443,16 @@ class SettingsDialog(QDialog):
         ):
             row = QHBoxLayout()
             chk_en = QCheckBox("Aktiv")
+            self._set_tooltip(chk_en, f"Blendet das Widget „{label}“ auf dem Desktop ein oder aus.")
             spn_sc = QSpinBox()
             spn_sc.setRange(0, 300)
             spn_sc.setSingleStep(5)
             spn_sc.setSpecialValueText("Global")
             spn_sc.setSuffix("%")
-            spn_sc.setToolTip("Individuelle Skalierung (0 = Global übernehmen)")
+            self._set_tooltip(
+                spn_sc,
+                "Individuelle Skalierung für dieses Widget (Global = globale UI-Skalierung übernehmen).",
+            )
             row.addWidget(chk_en)
             row.addStretch(1)
             row.addWidget(QLabel("Skalierung:"))
@@ -413,9 +472,21 @@ class SettingsDialog(QDialog):
 
         grp_clk = QGroupBox("Anzeige-Optionen (Uhrzeit && Datum)")
         c_form = QFormLayout(grp_clk)
-        self.chk_clock_24h = QCheckBox("24-Stunden-Format verwenden")
-        self.chk_clock_sec = QCheckBox("Sekunden-Fortschrittsbalken anzeigen")
+        self.chk_clock_24h = QCheckBox("24-Stunden-Format")
+        self._set_tooltip(
+            self.chk_clock_24h,
+            "Zeigt die Uhrzeit im 24-Stunden-Format statt 12-Stunden-Format (AM/PM) an.",
+        )
+        self.chk_clock_sec = QCheckBox("Sekunden-Balken anzeigen")
+        self._set_tooltip(
+            self.chk_clock_sec,
+            "Zeigt unter der Uhrzeit einen animierten Fortschrittsbalken für die laufende Minute an.",
+        )
         self.chk_clock_uptime = QCheckBox("System-Uptime anzeigen")
+        self._set_tooltip(
+            self.chk_clock_uptime,
+            "Zeigt die Betriebszeit seit dem letzten Systemstart im Uhrzeit-Widget an.",
+        )
         c_form.addRow("", self.chk_clock_24h)
         c_form.addRow("", self.chk_clock_sec)
         c_form.addRow("", self.chk_clock_uptime)
@@ -437,20 +508,42 @@ class SettingsDialog(QDialog):
         else:
             self.cmb_gpu.addItem("Keine GPU erkannt", 0)
         g_form.addRow("Aktive GPU:", self.cmb_gpu)
+        self._set_tooltip(
+            self.cmb_gpu,
+            "Wählt die Grafikkarte aus, deren Sensordaten im GPU-Widget angezeigt werden.",
+            g_form,
+        )
 
-        self.chk_gpu_power_fan = QCheckBox("Lüfter (RPM/%) und Leistungsaufnahme (Watt) anzeigen")
+        self.chk_gpu_power_fan = QCheckBox("Lüfter && Leistung (Watt) anzeigen")
+        self._set_tooltip(
+            self.chk_gpu_power_fan,
+            "Zeigt Lüfterdrehzahl (RPM / %) und aktuelle Leistungsaufnahme in Watt an.",
+        )
         g_form.addRow("", self.chk_gpu_power_fan)
 
         self.chk_gpu_mem_clock = QCheckBox("VRAM-Takt (MHz) anzeigen")
+        self._set_tooltip(
+            self.chk_gpu_mem_clock,
+            "Zeigt zusätzlich die aktuelle Speichertaktfrequenz des Grafikspeichers (MHz) an.",
+        )
         g_form.addRow("", self.chk_gpu_mem_clock)
 
         self.chk_gpu_driver = QCheckBox("Treiberversion im Header anzeigen")
+        self._set_tooltip(
+            self.chk_gpu_driver,
+            "Zeigt die installierte GPU-Treiberversion oben im Header des GPU-Widgets an.",
+        )
         g_form.addRow("", self.chk_gpu_driver)
 
         self.spn_temp_warn = QSpinBox()
         self.spn_temp_warn.setRange(50, 105)
         self.spn_temp_warn.setSuffix(" °C")
         g_form.addRow("Temperatur-Warnschwelle:", self.spn_temp_warn)
+        self._set_tooltip(
+            self.spn_temp_warn,
+            "Ab dieser GPU-Temperatur (50–105 °C) wird der Wert in der Warnfarbe hervorgehoben.",
+            g_form,
+        )
         layout.addWidget(grp_gpu)
         layout.addStretch(1)
         return tab
@@ -462,9 +555,21 @@ class SettingsDialog(QDialog):
 
         grp_cpu = QGroupBox("CPU, RAM && System-Metriken")
         c_form = QFormLayout(grp_cpu)
-        self.chk_cpu_max_core = QCheckBox("Höchsten Einzelkern anzeigen (Max-Kern %)")
-        self.chk_cpu_page_faults = QCheckBox("PageFaults/sec (Hard Page Faults) Graph anzeigen")
-        self.chk_cpu_disk = QCheckBox("Disk I/O (Lesen/Schreiben MB/s) anzeigen")
+        self.chk_cpu_max_core = QCheckBox("Max-Kern-Auslastung (%) anzeigen")
+        self._set_tooltip(
+            self.chk_cpu_max_core,
+            "Zeigt die Auslastung des am stärksten belasteten CPU-Einzelkerns an.",
+        )
+        self.chk_cpu_page_faults = QCheckBox("PageFaults/sec-Graph anzeigen")
+        self._set_tooltip(
+            self.chk_cpu_page_faults,
+            "Zeigt einen zusätzlichen Verlaufsgraphen für Hard Page Faults pro Sekunde an.",
+        )
+        self.chk_cpu_disk = QCheckBox("Disk I/O (MB/s) anzeigen")
+        self._set_tooltip(
+            self.chk_cpu_disk,
+            "Zeigt Lese- und Schreibrate der Festplatte bzw. SSD in MB/s an.",
+        )
         self.cmb_disk = QComboBox()
         self.cmb_disk.addItem("Alle Datenträger (Summe)", "")
         for disk in self._disks:
@@ -474,6 +579,11 @@ class SettingsDialog(QDialog):
         c_form.addRow("", self.chk_cpu_page_faults)
         c_form.addRow("", self.chk_cpu_disk)
         c_form.addRow("Disk I/O Laufwerk:", self.cmb_disk)
+        self._set_tooltip(
+            self.cmb_disk,
+            "Wählt ein bestimmtes Laufwerk oder die Summe aller Datenträger für Disk I/O aus.",
+            c_form,
+        )
         layout.addWidget(grp_cpu)
         layout.addStretch(1)
         return tab
@@ -486,9 +596,21 @@ class SettingsDialog(QDialog):
         grp_st = QGroupBox("Datenträger-Anzeige")
         s_form = QFormLayout(grp_st)
 
-        self.chk_storage_free_first = QCheckBox("Freien Speicher zuerst anzeigen („X GB frei von Y GB“)")
-        self.chk_storage_dedup = QCheckBox("Identische Laufwerke / Partitionen zusammenfassen")
-        self.chk_storage_boot = QCheckBox("Boot-Partitionen (/boot, /boot/efi) mit anzeigen")
+        self.chk_storage_free_first = QCheckBox("Freien Speicher zuerst anzeigen")
+        self._set_tooltip(
+            self.chk_storage_free_first,
+            "Formatiert den Speichertext als „X GB frei von Y GB“ statt belegtem Speicher zuerst.",
+        )
+        self.chk_storage_dedup = QCheckBox("Identische Laufwerke zusammenfassen")
+        self._set_tooltip(
+            self.chk_storage_dedup,
+            "Fasst mehrfach eingehängte Geräte (z. B. Btrfs-Subvolumes unter Linux) zu einem Eintrag zusammen.",
+        )
+        self.chk_storage_boot = QCheckBox("Boot-Partitionen mit anzeigen")
+        self._set_tooltip(
+            self.chk_storage_boot,
+            "Zeigt auch System-Boot-Partitionen wie /boot und /boot/efi in der Laufwerksliste an.",
+        )
         is_linux = sys.platform.startswith("linux")
         self.chk_storage_dedup.setVisible(is_linux)
         self.chk_storage_boot.setVisible(is_linux)
@@ -496,13 +618,17 @@ class SettingsDialog(QDialog):
         self.spn_storage_warn = QSpinBox()
         self.spn_storage_warn.setRange(50, 99)
         self.spn_storage_warn.setSuffix(" %")
-        self.spn_storage_warn.setToolTip("Ab dieser Belegung färbt sich der Laufwerksbalken in der Warnfarbe.")
 
         s_form.addRow("", self.chk_storage_free_first)
         if is_linux:
             s_form.addRow("", self.chk_storage_dedup)
             s_form.addRow("", self.chk_storage_boot)
         s_form.addRow("Warnschwelle Belegung:", self.spn_storage_warn)
+        self._set_tooltip(
+            self.spn_storage_warn,
+            "Ab dieser Belegung färbt sich der Laufwerksbalken in der Warnfarbe.",
+            s_form,
+        )
 
         layout.addWidget(grp_st)
 
@@ -523,12 +649,14 @@ class SettingsDialog(QDialog):
         for d in self._storage_disks:
             seen_mounts.add(d.mountpoint)
             chk = QCheckBox(f"{d.label}  ({format_storage_size(d.total_gb)})")
+            self._set_tooltip(chk, f"Laufwerk „{d.mountpoint}“ im Datenträger-Widget anzeigen oder ausblenden.")
             drv_list.addWidget(chk)
             self._storage_drive_checks[d.mountpoint] = chk
 
         for mp in self.config.storage_hidden_mountpoints:
             if mp not in seen_mounts:
                 chk = QCheckBox(f"{mp} (nicht verbunden)")
+                self._set_tooltip(chk, f"Laufwerk „{mp}“ im Datenträger-Widget anzeigen oder ausblenden.")
                 drv_list.addWidget(chk)
                 self._storage_drive_checks[mp] = chk
 
@@ -552,9 +680,14 @@ class SettingsDialog(QDialog):
         self.cmb_theme = QComboBox()
         self.cmb_theme.addItems(list(THEMES.keys()))
         self.cmb_theme.activated.connect(self._load_preset_colors)
+        self._set_tooltip(
+            self.cmb_theme,
+            "Wählt eine vordefinierte Farbpalette als Vorschau für alle Farben aus.",
+        )
         btn_theme = QPushButton("Theme anwenden")
         btn_theme.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_theme.clicked.connect(self._apply_preset_theme)
+        self._set_tooltip(btn_theme, "Übernimmt die ausgewählte Farbvorlage sofort auf alle Widgets.")
         p_row.addWidget(QLabel("Vorlage:"))
         p_row.addWidget(self.cmb_theme, 1)
         p_row.addWidget(btn_theme)
@@ -575,6 +708,26 @@ class SettingsDialog(QDialog):
         m_form.addRow("Sekundär-Graph (RAM):", self.btn_col_secondary)
         m_form.addRow("Temperatur / Warnung:", self.btn_col_temp)
         m_form.addRow("VRAM / Disk / Wochentag:", self.btn_col_vram)
+        self._set_tooltip(
+            self.btn_col_primary,
+            "Hauptfarbe für GPU-/CPU-Auslastung und Akzente.",
+            m_form,
+        )
+        self._set_tooltip(
+            self.btn_col_secondary,
+            "Farbe für RAM-Auslastung und sekundäre Graphen.",
+            m_form,
+        )
+        self._set_tooltip(
+            self.btn_col_temp,
+            "Farbe für Temperaturanzeigen und Schwellwert-Warnungen.",
+            m_form,
+        )
+        self._set_tooltip(
+            self.btn_col_vram,
+            "Farbe für VRAM, Disk I/O und den Wochentag im Uhrzeit-Widget.",
+            m_form,
+        )
         colors_row.addWidget(grp_metrics)
 
         grp_design = QGroupBox("Widget Design")
@@ -591,6 +744,11 @@ class SettingsDialog(QDialog):
         d_form.addRow("Raster (Grid):", self.btn_col_grid)
         d_form.addRow("Titelfarbe:", self.btn_col_title)
         d_form.addRow("Sekundärtext:", self.btn_col_muted)
+        self._set_tooltip(self.btn_col_bg, "Hintergrundfarbe der Widget-Karten.", d_form)
+        self._set_tooltip(self.btn_col_border, "Rahmenfarbe der Widget-Karten.", d_form)
+        self._set_tooltip(self.btn_col_grid, "Linienfarbe des Hintergrundrasters in Graphen.", d_form)
+        self._set_tooltip(self.btn_col_title, "Textfarbe für Widget-Titel und Hauptwerte.", d_form)
+        self._set_tooltip(self.btn_col_muted, "Textfarbe für Beschriftungen, Einheiten und Nebentexte.", d_form)
         colors_row.addWidget(grp_design)
 
         layout.addLayout(colors_row)

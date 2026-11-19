@@ -4,6 +4,12 @@ Alle relevanten Änderungen an diesem Projekt werden in dieser Datei dokumentier
 Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/),
 und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 
+## [0.14.4] - 2026-11-19
+### Changed
+- **Einstellungsdialog gestrafft & mit Erklär-Tooltips versehen (`src/ui/settings_dlg.py`):**
+  - Lange Checkbox- und Form-Labels über alle Tabs hinweg gekürzt (z. B. `Mit Systemstart automatisch starten`, `Immer im Vordergrund`, `An Rändern & Widgets einrasten`, `24-Stunden-Format`, `Lüfter & Leistung (Watt) anzeigen`, `Max-Kern-Auslastung (%) anzeigen`, `PageFaults/sec-Graph anzeigen`, `Freien Speicher zuerst anzeigen`).
+  - Einheitliche, kurze Erklär-Tooltips für sämtliche Optionen, Slider, Farbbuttons, Laufwerks-Checkboxen und Dialog-Aktionsbuttons ergänzt.
+
 ## [0.14.3] - 2026-11-19
 ### Changed
 - **Kompakte Einstellungs-Tabs & gebündelter `Anzeige`-Tab (`src/ui/settings_dlg.py`):**

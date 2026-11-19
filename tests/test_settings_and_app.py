@@ -201,3 +201,27 @@ def test_settings_dialog_compact_tabs_and_display_subpages() -> None:
     assert general_tab.isAncestorOf(dlg.spn_history)
 
     dlg.close()
+
+
+def test_settings_dialog_options_have_tooltips_and_concise_labels() -> None:
+    from PySide6.QtWidgets import QCheckBox, QComboBox, QSlider, QSpinBox
+
+    _ensure_qapp()
+    cfg = AppConfig()
+    cfg.save = lambda: None
+    dlg = SettingsDialog(cfg, [], lambda: None)
+
+    option_widgets = (
+        dlg.findChildren(QCheckBox)
+        + dlg.findChildren(QSpinBox)
+        + dlg.findChildren(QSlider)
+        + dlg.findChildren(QComboBox)
+    )
+    assert option_widgets
+    for widget in option_widgets:
+        assert widget.toolTip().strip(), f"Missing tooltip on {widget!r} ({getattr(widget, 'text', lambda: '')()})"
+
+    for chk in dlg.findChildren(QCheckBox):
+        assert len(chk.text()) <= 45, f"Checkbox label too long: {chk.text()!r}"
+
+    dlg.close()
