@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
     QDialog,
     QFormLayout,
     QFrame,
+    QGridLayout,
     QGroupBox,
     QHBoxLayout,
     QLabel,
@@ -82,7 +83,7 @@ class SettingsDialog(QDialog):
 
         self.setWindowTitle("SystemBox Einstellungen")
         self.setWindowIcon(create_systembox_icon(self.config.primary_color))
-        self.setMinimumSize(720, 520)
+        self.setMinimumSize(500, 420)
 
         self._build_ui()
         self._restore_geometry()
@@ -102,8 +103,8 @@ class SettingsDialog(QDialog):
 
     def _restore_geometry(self) -> None:
         """Restore window position and size if valid on current screens."""
-        cfg_w = max(720, self.config.settings_width)
-        cfg_h = max(620, self.config.settings_height)
+        cfg_w = max(500, self.config.settings_width)
+        cfg_h = max(420, self.config.settings_height)
         self.resize(cfg_w, cfg_h)
 
         if self.config.settings_pos_x >= 0 and self.config.settings_pos_y >= 0:
@@ -799,8 +800,9 @@ class SettingsDialog(QDialog):
         top_row.addLayout(info_col, 1)
         about_layout.addLayout(top_row)
 
-        btn_row = QHBoxLayout()
-        btn_row.setSpacing(8)
+        btn_grid = QGridLayout()
+        btn_grid.setSpacing(8)
+        about_buttons: list[QPushButton] = []
         for text, url in (
             ("🌐 GitHub", repo_url),
             ("🚀 Releases", releases_url),
@@ -809,15 +811,18 @@ class SettingsDialog(QDialog):
             btn = QPushButton(text)
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
             btn.clicked.connect(lambda _=False, u=url: QDesktopServices.openUrl(QUrl(u)))
-            btn_row.addWidget(btn)
+            about_buttons.append(btn)
 
         btn_cfg = QPushButton("📁 Konfig-Ordner")
         btn_cfg.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_cfg.clicked.connect(
             lambda: QDesktopServices.openUrl(QUrl.fromLocalFile(str(AppConfig.config_path().parent)))
         )
-        btn_row.addWidget(btn_cfg)
-        about_layout.addLayout(btn_row)
+        about_buttons.append(btn_cfg)
+
+        for idx, btn in enumerate(about_buttons):
+            btn_grid.addWidget(btn, idx // 2, idx % 2)
+        about_layout.addLayout(btn_grid)
         layout.addWidget(grp_about)
 
         # Group 2: System-Diagnose & Rechtliches
@@ -829,26 +834,34 @@ class SettingsDialog(QDialog):
         mode_str = "Binary" if getattr(sys, "frozen", False) else "Quellcode"
         os_str = f"{platform.system()} {platform.release()} ({platform.machine()})"
         runtime_str = f"{os_str} • Python {platform.python_version()} • Qt {qVersion()} • {mode_str}"
-        d_form.addRow("Laufzeit:", QLabel(runtime_str))
+        lbl_runtime = self._make_wrapping_info_label(runtime_str, selectable=True)
+        d_form.addRow("Laufzeit:", lbl_runtime)
 
         cfg_dir = AppConfig.config_path().parent
         loc_str = f"Portabel ({cfg_dir})" if cfg_dir.name == "local" else f"Systemprofil ({cfg_dir})"
-        lbl_loc = QLabel(loc_str)
-        lbl_loc.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        lbl_loc = self._make_wrapping_info_label(loc_str, selectable=True)
         d_form.addRow("Speicherort:", lbl_loc)
 
         gpu_str = ", ".join(f"[{g.index}] {g.name} ({g.backend})" for g in self._gpus) or "Keine dedizierte GPU erkannt"
-        lbl_gpu = QLabel(gpu_str)
-        lbl_gpu.setWordWrap(True)
-        lbl_gpu.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        lbl_gpu.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        lbl_gpu = self._make_wrapping_info_label(gpu_str, selectable=True)
         d_form.addRow("Hardware:", lbl_gpu)
 
-        d_form.addRow("Hinweise:", QLabel("Open Source (MIT) • 100 % lokal ohne Telemetrie"))
+        lbl_notes = self._make_wrapping_info_label("Open Source (MIT) • 100 % lokal ohne Telemetrie")
+        d_form.addRow("Hinweise:", lbl_notes)
         layout.addWidget(grp_diag)
 
         layout.addStretch(1)
         return tab
+
+    @staticmethod
+    def _make_wrapping_info_label(text: str, selectable: bool = False) -> QLabel:
+        """Create a word-wrapping info label that expands cleanly in QFormLayout."""
+        lbl = QLabel(text)
+        lbl.setWordWrap(True)
+        lbl.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        if selectable:
+            lbl.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        return lbl
 
     def _load_preset_colors(self) -> None:
         name = self.cmb_theme.currentText()

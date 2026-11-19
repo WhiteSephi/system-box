@@ -4,6 +4,13 @@ Alle relevanten Änderungen an diesem Projekt werden in dieser Datei dokumentier
 Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/),
 und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 
+## [0.14.5] - 2026-11-19
+### Changed
+- **Einstellungsdialog flexibler skalierbar & „Über“-Tab umgebrochen (`src/ui/settings_dlg.py`):**
+  - Mindestgröße des Einstellungsdialogs von `720×520 px` auf `500×420 px` gesenkt, damit sich das Fenster auch schmaler zusammenschieben lässt.
+  - Action-Buttons im `Über`-Tab (`GitHub`, `Releases`, `Fehler melden`, `Konfig-Ordner`) als 2×2-`QGridLayout` angeordnet.
+  - Alle Info-Labels unter `System-Diagnose & Rechtliches` mit `setWordWrap(True)` und `Expanding`-Größenrichtlinie versehen, damit bei schmalem Fenster nichts rechts abgeschnitten wird.
+
 ## [0.14.4] - 2026-11-19
 ### Changed
 - **Einstellungsdialog gestrafft & mit Erklär-Tooltips versehen (`src/ui/settings_dlg.py`):**

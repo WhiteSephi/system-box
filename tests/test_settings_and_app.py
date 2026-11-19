@@ -225,3 +225,44 @@ def test_settings_dialog_options_have_tooltips_and_concise_labels() -> None:
         assert len(chk.text()) <= 45, f"Checkbox label too long: {chk.text()!r}"
 
     dlg.close()
+
+
+def test_settings_dialog_about_tab_grid_and_narrow_resize() -> None:
+    from PySide6.QtWidgets import QGridLayout, QGroupBox, QPushButton
+
+    _ensure_qapp()
+    cfg = AppConfig()
+    cfg.save = lambda: None
+    dlg = SettingsDialog(cfg, [GpuInfo(index=0, name="Test GPU", vendor="nvidia", backend="nvml")], lambda: None)
+    dlg.select_tab("about")
+    dlg.resize(500, 420)
+    assert dlg.minimumWidth() <= 500
+    assert dlg.minimumHeight() <= 420
+    assert dlg.width() == 500
+    assert dlg.height() == 420
+
+    about_tab = dlg.tabs.currentWidget()
+    assert about_tab is not None
+    grids = about_tab.findChildren(QGridLayout)
+    assert len(grids) == 1
+    grid = grids[0]
+    assert grid.rowCount() == 2
+    assert grid.columnCount() == 2
+    assert grid.count() == 4
+    for r in range(2):
+        for c in range(2):
+            item = grid.itemAtPosition(r, c)
+            assert item is not None
+            assert isinstance(item.widget(), QPushButton)
+
+    diag_boxes = [box for box in about_tab.findChildren(QGroupBox) if "System-Diagnose" in box.title()]
+    assert len(diag_boxes) == 1
+    info_labels = [
+        lbl
+        for lbl in diag_boxes[0].findChildren(QLabel)
+        if not lbl.text().endswith(":")
+    ]
+    assert len(info_labels) == 4
+    assert all(lbl.wordWrap() for lbl in info_labels)
+
+    dlg.close()
