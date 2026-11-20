@@ -83,7 +83,7 @@ def test_cpu_widget_renders_all_visualizer_modes() -> None:
 
     modes = [
         ("graph", "graph", "graph", "graph"),
-        ("core_bars", "grid_blocks", "impulse_bars", "dual_meter"),
+        ("core_bars", "grid_blocks", "page_matrix", "dual_meter"),
         ("core_heatmap", "segmented_bar", "page_matrix", "mirror_graph"),
     ]
     for idx, (c_m, r_m, p_m, d_m) in enumerate(modes):
@@ -96,7 +96,7 @@ def test_cpu_widget_renders_all_visualizer_modes() -> None:
         app.processEvents()
         assert w.stack_cpu.currentIndex() == idx
         assert w.stack_ram.currentIndex() == idx
-        assert w.stack_pf.currentIndex() == idx
+        assert w.stack_pf.currentIndex() == (0 if p_m == "graph" else 1)
         assert w.stack_disk.currentIndex() == idx
         pixmap = w.grab()
         assert pixmap.width() > 0 and pixmap.height() > 0
@@ -114,7 +114,7 @@ def test_settings_dialog_system_viz_and_save() -> None:
 
     dlg.cmb_cpu_viz.setCurrentIndex(1)
     dlg.cmb_ram_viz.setCurrentIndex(1)
-    dlg.cmb_pf_viz.setCurrentIndex(2)
+    dlg.cmb_pf_viz.setCurrentIndex(1)
     dlg.cmb_disk_viz.setCurrentIndex(2)
     with patch("src.ui.settings_dlg.set_autostart"):
         dlg._save_to_config()

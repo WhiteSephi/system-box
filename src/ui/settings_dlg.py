@@ -574,7 +574,6 @@ class SettingsDialog(QDialog):
         ])
         self.cmb_pf_viz = self._make_viz_combo([
             ("Live-Graph", "graph"),
-            ("Impuls-Balken", "impulse_bars"),
             ("Page-Matrix", "page_matrix"),
         ])
         self.cmb_disk_viz = self._make_viz_combo([
@@ -588,7 +587,7 @@ class SettingsDialog(QDialog):
         v_form.addRow("Arbeitsspeicher (RAM):", self.cmb_ram_viz)
         self._set_tooltip(self.cmb_ram_viz, "Wählt zwischen Verlaufsgraph, 2er-Potenz-Speicherblöcken oder Segment-Balken.", v_form)
         v_form.addRow("PageFaults/sec:", self.cmb_pf_viz)
-        self._set_tooltip(self.cmb_pf_viz, "Wählt zwischen Verlaufsgraph, Spike-Impulsen oder aufblitzender Page-Matrix.", v_form)
+        self._set_tooltip(self.cmb_pf_viz, "Wählt zwischen Verlaufsgraph und aufblitzender Page-Matrix.", v_form)
         v_form.addRow("Disk I/O (R/W):", self.cmb_disk_viz)
         self._set_tooltip(self.cmb_disk_viz, "Wählt zwischen Verlaufsgraph, R/W-Peak-Hold-Meter oder bidirektionalem Spiegel-Graph.", v_form)
         return grp_viz

@@ -1,4 +1,4 @@
-"""PageFault and Disk I/O visualizers (impulse bars, page matrix, dual R/W meter, mirror graph)."""
+"""PageFault and Disk I/O visualizers (page matrix, dual R/W meter, mirror graph)."""
 
 from __future__ import annotations
 
@@ -24,67 +24,6 @@ def _io_log_ratio(value: float) -> float:
     if value <= 0.0:
         return 0.0
     return min(1.0, math.log1p(value * 4.0) / math.log1p(2000.0))
-
-
-class ImpulseBarsWidget(BaseVisualizerWidget):
-    """Renders spike history (PageFaults/sec) as vertical impulse needles with peak cap dots."""
-
-    def __init__(self, history_len: int = 60, primary_color: str = "#3FB950", grid_color: str = "#32383D", accent_color: str = "#F85149") -> None:
-        super().__init__(primary_color=primary_color, grid_color=grid_color, accent_color=accent_color)
-        self._history: deque[float] = deque([0.0] * max(15, history_len), maxlen=max(15, history_len))
-
-    def set_history_length(self, length: int) -> None:
-        """Resize rolling sample buffer."""
-        target = max(15, length)
-        if self._history.maxlen != target:
-            items = list(self._history)[-target:]
-            pad = [0.0] * max(0, target - len(items))
-            self._history = deque(pad + items, maxlen=target)
-            self.update()
-
-    def push_value(self, value: float) -> None:
-        """Append latest sample and trigger repaint."""
-        self._history.append(max(0.0, float(value)))
-        self.update()
-
-    def current_ceiling(self) -> float:
-        """Return dynamic Y-axis ceiling (minimum 128)."""
-        peak = max(self._history) if self._history else 0.0
-        return max(128.0, peak * 1.2)
-
-    def paintEvent(self, _event: object) -> None:
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
-        inner = self._begin_frame(painter)
-
-        samples = list(self._history)
-        n = len(samples)
-        if n == 0:
-            painter.end()
-            return
-        ceiling = self.current_ceiling()
-        step = inner.width() / n
-        bar_w = max(1.5, step * 0.58)
-        cap_h = max(1.5, 2.0 * self._ui_scale)
-
-        painter.setPen(Qt.PenStyle.NoPen)
-        for i, val in enumerate(samples):
-            x = inner.left() + i * step
-            if val <= 0.0:
-                idle_col = QColor(self._grid_color)
-                idle_col.setAlpha(150)
-                painter.setBrush(idle_col)
-                painter.drawRect(QRectF(x, inner.bottom() - 1.5, bar_w, 1.5))
-            else:
-                ratio = min(1.0, val / ceiling)
-                h = max(3.5, inner.height() * ratio)
-                col = self._accent_color if ratio >= 0.75 else self._primary_color
-                painter.setBrush(col)
-                top_y = inner.bottom() - h
-                painter.drawRoundedRect(QRectF(x, top_y, bar_w, h), 1.0, 1.0)
-                painter.setBrush(QColor("#F0F6FC"))
-                painter.drawRect(QRectF(x, top_y, bar_w, min(cap_h, h)))
-        painter.end()
 
 
 class PageMatrixWidget(BaseVisualizerWidget):

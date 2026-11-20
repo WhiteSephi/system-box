@@ -14,7 +14,6 @@ from src.ui.visualizers import (
     CoreBarsWidget,
     CoreHeatmapWidget,
     DualIoMeterWidget,
-    ImpulseBarsWidget,
     MirrorGraphWidget,
     PageMatrixWidget,
     RamGridBoxWidget,
@@ -118,11 +117,9 @@ class CpuSystemWidget(BaseDesktopWidget):
             dynamic_scale=True,
             min_ceiling=128.0,
         )
-        self.viz_pf_impulse = ImpulseBarsWidget(self.config.history_seconds, self.config.vram_color, self.config.grid_color, self.config.temp_color)
         self.viz_pf_matrix = PageMatrixWidget(self.config.vram_color, self.config.grid_color, self.config.temp_color)
         self.stack_pf = QStackedWidget()
         self.stack_pf.addWidget(self.graph_pf)
-        self.stack_pf.addWidget(self.viz_pf_impulse)
         self.stack_pf.addWidget(self.viz_pf_matrix)
         v_pf.addLayout(r_pf)
         v_pf.addWidget(self.stack_pf)
@@ -196,14 +193,13 @@ class CpuSystemWidget(BaseDesktopWidget):
         self.viz_ram_bar.set_colors(self.config.secondary_color, self.config.grid_color, muted_color=self.config.muted_color)
 
         self.graph_pf.set_colors(self.config.vram_color, self.config.grid_color)
-        self.viz_pf_impulse.set_colors(self.config.vram_color, self.config.grid_color, accent_color=self.config.temp_color)
         self.viz_pf_matrix.set_colors(self.config.vram_color, self.config.grid_color, accent_color=self.config.temp_color)
 
         self.graph_disk.set_colors(self.config.vram_color, self.config.grid_color, self.config.secondary_color)
         self.viz_disk_meter.set_colors(self.config.vram_color, self.config.grid_color, secondary_color=self.config.secondary_color)
         self.viz_disk_mirror.set_colors(self.config.vram_color, self.config.grid_color, secondary_color=self.config.secondary_color)
 
-        for g in (self.graph_cpu, self.graph_ram, self.graph_pf, self.graph_disk, self.viz_pf_impulse, self.viz_disk_mirror):
+        for g in (self.graph_cpu, self.graph_ram, self.graph_pf, self.graph_disk, self.viz_disk_mirror):
             g.set_history_length(self.config.history_seconds)
 
         for w in (
@@ -214,7 +210,6 @@ class CpuSystemWidget(BaseDesktopWidget):
             self.viz_ram_grid,
             self.viz_ram_bar,
             self.graph_pf,
-            self.viz_pf_impulse,
             self.viz_pf_matrix,
             self.graph_disk,
             self.viz_disk_meter,
@@ -263,7 +258,6 @@ class CpuSystemWidget(BaseDesktopWidget):
         if self.config.cpu_show_page_faults:
             pf_val = cpu.page_faults_per_sec if cpu.page_faults_per_sec is not None else 0.0
             self.graph_pf.push_value(pf_val)
-            self.viz_pf_impulse.push_value(pf_val)
             self.viz_pf_matrix.push_value(pf_val)
             self.lbl_pf.setText(f"PageFaults/sec: {pf_val:.0f}")
             active_pf = self.stack_pf.currentWidget()
