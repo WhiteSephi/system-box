@@ -49,14 +49,14 @@ THEMES: dict[str, dict[str, str]] = {
     },
     "Minimalist Monochrome (Weiß & Grau)": {
         "primary": "#FFFFFF",
-        "secondary": "#90CAF9",
-        "temp": "#FF8A80",
-        "vram": "#B0BEC5",
+        "secondary": "#A3A3A3",
+        "temp": "#D4D4D4",
+        "vram": "#8C8C8C",
         "bg": "#121212",
-        "border": "#37474F",
-        "grid": "#263238",
-        "title": "#ECEFF1",
-        "muted": "#90A4AE",
+        "border": "#404040",
+        "grid": "#262626",
+        "title": "#F5F5F5",
+        "muted": "#A3A3A3",
     },
 }
 

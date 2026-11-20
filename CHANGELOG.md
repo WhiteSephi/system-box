@@ -4,6 +4,13 @@ Alle relevanten Änderungen an diesem Projekt werden in dieser Datei dokumentier
 Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/),
 und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 
+## [0.14.6] - 2026-11-20
+### Changed
+- **Theme-Auswahl & Monochrome-Palette verfeinert (`src/themes.py`, `src/ui/color_picker.py`, `src/ui/settings_dlg.py`):**
+  - Farbpalette `Minimalist Monochrome (Weiß & Grau)` auf reine Weiß-/Grautöne abgestimmt.
+  - Separaten Button `Theme anwenden` entfernt; die Auswahl in `cmb_theme` übernimmt die Vorlage direkt in die Farbfelder (Speichern wie gewohnt über `Übernehmen` oder `OK`).
+  - `ColorButton` emittiert bei manueller Farbänderung `color_changed`, sodass `cmb_theme` automatisch das passende Preset oder `Benutzerdefiniert` anzeigt.
+
 ## [0.14.5] - 2026-11-19
 ### Changed
 - **Einstellungsdialog flexibler skalierbar & „Über“-Tab umgebrochen (`src/ui/settings_dlg.py`):**

@@ -1,4 +1,4 @@
 """SystemBox – Cross-platform live desktop widget suite."""
 
-__version__ = "0.14.5"
+__version__ = "0.14.6"
 __app_name__ = "SystemBox"

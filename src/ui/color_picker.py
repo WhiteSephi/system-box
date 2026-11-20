@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor, QIcon, QPainter, QPixmap
 from PySide6.QtWidgets import (
     QColorDialog,
@@ -198,6 +198,8 @@ class ModernColorPickerPopup(QDialog):
 class ColorButton(QPushButton):
     """Compact button displaying a color swatch and opening ModernColorPickerPopup."""
 
+    color_changed = Signal(str)
+
     def __init__(self, hex_color: str, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._hex_color = hex_color
@@ -247,3 +249,4 @@ class ColorButton(QPushButton):
 
     def _on_color_chosen(self, hex_val: str) -> None:
         self.hex_color = hex_val
+        self.color_changed.emit(self._hex_color)

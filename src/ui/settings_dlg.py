@@ -676,22 +676,17 @@ class SettingsDialog(QDialog):
         layout = QVBoxLayout(tab)
         layout.setSpacing(10)
 
-        grp_preset = QGroupBox("Theme-Schnellauswahl (Farb-Vorlagen)")
+        grp_preset = QGroupBox("Theme-Schnellauswahl")
         p_row = QHBoxLayout(grp_preset)
         self.cmb_theme = QComboBox()
-        self.cmb_theme.addItems(list(THEMES.keys()))
+        self.cmb_theme.addItems(list(THEMES.keys()) + ["Benutzerdefiniert"])
         self.cmb_theme.activated.connect(self._load_preset_colors)
         self._set_tooltip(
             self.cmb_theme,
-            "Wählt eine vordefinierte Farbpalette als Vorschau für alle Farben aus.",
+            "Wählt eine Farbvorlage direkt in die Farbfelder darunter. Speichern über „Übernehmen“ oder „OK“.",
         )
-        btn_theme = QPushButton("Theme anwenden")
-        btn_theme.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn_theme.clicked.connect(self._apply_preset_theme)
-        self._set_tooltip(btn_theme, "Übernimmt die ausgewählte Farbvorlage sofort auf alle Widgets.")
         p_row.addWidget(QLabel("Vorlage:"))
         p_row.addWidget(self.cmb_theme, 1)
-        p_row.addWidget(btn_theme)
         layout.addWidget(grp_preset)
 
         colors_row = QHBoxLayout()
@@ -751,6 +746,19 @@ class SettingsDialog(QDialog):
         self._set_tooltip(self.btn_col_title, "Textfarbe für Widget-Titel und Hauptwerte.", d_form)
         self._set_tooltip(self.btn_col_muted, "Textfarbe für Beschriftungen, Einheiten und Nebentexte.", d_form)
         colors_row.addWidget(grp_design)
+
+        for btn_col in (
+            self.btn_col_primary,
+            self.btn_col_secondary,
+            self.btn_col_temp,
+            self.btn_col_vram,
+            self.btn_col_bg,
+            self.btn_col_border,
+            self.btn_col_grid,
+            self.btn_col_title,
+            self.btn_col_muted,
+        ):
+            btn_col.color_changed.connect(self._sync_theme_dropdown_from_buttons)
 
         layout.addLayout(colors_row)
         layout.addStretch(1)
@@ -878,6 +886,25 @@ class SettingsDialog(QDialog):
         self.btn_col_title.hex_color = theme["title"]
         self.btn_col_muted.hex_color = theme["muted"]
 
+    def _sync_theme_dropdown_from_buttons(self) -> None:
+        """Select matching theme preset in cmb_theme or 'Benutzerdefiniert'."""
+        current = {
+            "primary": self.btn_col_primary.hex_color,
+            "secondary": self.btn_col_secondary.hex_color,
+            "temp": self.btn_col_temp.hex_color,
+            "vram": self.btn_col_vram.hex_color,
+            "bg": self.btn_col_bg.hex_color,
+            "border": self.btn_col_border.hex_color,
+            "grid": self.btn_col_grid.hex_color,
+            "title": self.btn_col_title.hex_color,
+            "muted": self.btn_col_muted.hex_color,
+        }
+        for name, preset in THEMES.items():
+            if all(current[k].upper() == preset[k].upper() for k in current):
+                self.cmb_theme.setCurrentText(name)
+                return
+        self.cmb_theme.setCurrentText("Benutzerdefiniert")
+
     def _apply_preset_theme(self) -> None:
         self._load_preset_colors()
         self._save_to_config()
@@ -927,9 +954,7 @@ class SettingsDialog(QDialog):
         for mp, chk in self._storage_drive_checks.items():
             chk.setChecked(mp not in hidden_mounts)
 
-        t_idx = self.cmb_theme.findText(self.config.theme_name)
-        if t_idx >= 0:
-            self.cmb_theme.setCurrentIndex(t_idx)
+        self._sync_theme_dropdown_from_buttons()
 
     def _save_to_config(self) -> None:
         self.config.autostart = self.chk_autostart.isChecked()
@@ -1039,6 +1064,7 @@ class SettingsDialog(QDialog):
         self.btn_col_grid.hex_color = defaults.grid_color
         self.btn_col_title.hex_color = defaults.title_color
         self.btn_col_muted.hex_color = defaults.muted_color
+        self._sync_theme_dropdown_from_buttons()
 
     def _apply_changes(self) -> None:
         self._save_to_config()

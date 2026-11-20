@@ -57,6 +57,10 @@ def test_settings_dialog_themes_disks_and_hardware_label() -> None:
     assert cfg.primary_color == "#FFB300"
     assert len(applied) == 1
 
+    # Manual color change switches dropdown to 'Benutzerdefiniert'
+    dlg.btn_col_primary._on_color_chosen("#123456")
+    assert dlg.cmb_theme.currentText() == "Benutzerdefiniert"
+
     # Disk selection saved to config
     assert dlg.cmb_disk.itemText(0) == "Alle Datenträger (Summe)"
     assert dlg.cmb_disk.count() == 3
