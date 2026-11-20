@@ -30,11 +30,18 @@ from PySide6.QtWidgets import (
     QTabWidget,
     QVBoxLayout,
     QWidget,
+    QPlainTextEdit,
 )
 
 from src import __version__
 from src.autostart import is_autostart_enabled, set_autostart
 from src.config import AppConfig
+from src.logger import (
+    build_github_issue_url,
+    collect_diagnostics_report,
+    get_log_dir,
+    set_debug_logging,
+)
 from src.sensors.disk_space import format_storage_size, read_disk_spaces
 from src.sensors.models import DiskSpaceInfo, GpuInfo
 from src.themes import THEMES
@@ -55,6 +62,10 @@ class SettingsDialog(QDialog):
         "storage": 5,
         "about": 6,
     }
+
+    GITHUB_REPO_URL = "https://github.com/WhiteSephi/system-box"
+    GITHUB_RELEASES_URL = f"{GITHUB_REPO_URL}/releases"
+    GITHUB_ISSUES_URL = f"{GITHUB_REPO_URL}/issues"
 
     def __init__(
         self,
@@ -266,6 +277,42 @@ class SettingsDialog(QDialog):
             p_form,
         )
         layout.addWidget(grp_poll)
+
+        # Diagnose & Protokollierung (analog TrafficBox)
+        grp_diag = QGroupBox("Diagnose && Protokollierung")
+        diag_layout = QVBoxLayout(grp_diag)
+        diag_layout.setContentsMargins(10, 10, 10, 10)
+        diag_layout.setSpacing(6)
+
+        self.chk_debug_logging = QCheckBox("Erweitertes Debug-Logging aktivieren")
+        self._set_tooltip(
+            self.chk_debug_logging,
+            "Schreibt detaillierte Diagnose-Ereignisse in eine rotierende Log-Datei "
+            "(max. 3 MB, ohne Passwörter, Benutzernamen oder private IP-Adressen).",
+        )
+        diag_layout.addWidget(self.chk_debug_logging)
+
+        diag_btn_row = QHBoxLayout()
+        diag_btn_row.setSpacing(8)
+        self.btn_open_logs = QPushButton("📂 Log-Ordner öffnen")
+        self.btn_open_logs.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._set_tooltip(self.btn_open_logs, "Öffnet das Verzeichnis mit der lokalen Log-Datei.")
+        self.btn_open_logs.clicked.connect(
+            lambda: QDesktopServices.openUrl(QUrl.fromLocalFile(str(get_log_dir())))
+        )
+
+        self.btn_copy_diag = QPushButton("📋 Diagnose-Bericht kopieren")
+        self.btn_copy_diag.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._set_tooltip(
+            self.btn_copy_diag,
+            "Kopiert anonymisierte System- und Log-Informationen für Fehlerberichte in die Zwischenablage.",
+        )
+        self.btn_copy_diag.clicked.connect(self._copy_diagnostics_to_clipboard)
+
+        diag_btn_row.addWidget(self.btn_open_logs)
+        diag_btn_row.addWidget(self.btn_copy_diag)
+        diag_layout.addLayout(diag_btn_row)
+        layout.addWidget(grp_diag)
 
         layout.addStretch(1)
         return tab
@@ -817,10 +864,6 @@ class SettingsDialog(QDialog):
         layout = QVBoxLayout(tab)
         layout.setSpacing(10)
 
-        repo_url = "https://github.com/WhiteSephi/system-box"
-        releases_url = f"{repo_url}/releases"
-        issues_url = f"{repo_url}/issues"
-
         # Group 1: Über SystemBox (analog TrafficBox)
         grp_about = QGroupBox("Über SystemBox")
         about_layout = QVBoxLayout(grp_about)
@@ -858,26 +901,33 @@ class SettingsDialog(QDialog):
 
         btn_grid = QGridLayout()
         btn_grid.setSpacing(8)
-        about_buttons: list[QPushButton] = []
-        for text, url in (
-            ("🌐 GitHub", repo_url),
-            ("🚀 Releases", releases_url),
-            ("🐛 Fehler melden", issues_url),
-        ):
-            btn = QPushButton(text)
-            btn.setCursor(Qt.CursorShape.PointingHandCursor)
-            btn.clicked.connect(lambda _=False, u=url: QDesktopServices.openUrl(QUrl(u)))
-            about_buttons.append(btn)
+
+        btn_gh = QPushButton("🌐 GitHub")
+        btn_gh.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_gh.clicked.connect(lambda: QDesktopServices.openUrl(QUrl(self.GITHUB_REPO_URL)))
+        btn_grid.addWidget(btn_gh, 0, 0)
+
+        btn_rel = QPushButton("🚀 Releases")
+        btn_rel.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_rel.clicked.connect(lambda: QDesktopServices.openUrl(QUrl(self.GITHUB_RELEASES_URL)))
+        btn_grid.addWidget(btn_rel, 0, 1)
+
+        self.btn_about_issues = QPushButton("🐛 Fehler melden")
+        self.btn_about_issues.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._set_tooltip(
+            self.btn_about_issues,
+            "Öffnet die GitHub-Issue-Seite (optional mit anonymisiertem Diagnose-Bericht).",
+        )
+        self.btn_about_issues.clicked.connect(self._on_report_bug_clicked)
+        btn_grid.addWidget(self.btn_about_issues, 1, 0)
 
         btn_cfg = QPushButton("📁 Konfig-Ordner")
         btn_cfg.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_cfg.clicked.connect(
             lambda: QDesktopServices.openUrl(QUrl.fromLocalFile(str(AppConfig.config_path().parent)))
         )
-        about_buttons.append(btn_cfg)
+        btn_grid.addWidget(btn_cfg, 1, 1)
 
-        for idx, btn in enumerate(about_buttons):
-            btn_grid.addWidget(btn, idx // 2, idx % 2)
         about_layout.addLayout(btn_grid)
         layout.addWidget(grp_about)
 
@@ -961,6 +1011,7 @@ class SettingsDialog(QDialog):
     def _load_from_config(self) -> None:
         self.chk_autostart.setChecked(is_autostart_enabled() or self.config.autostart)
         self.spn_start_delay.setValue(self.config.start_delay_sec)
+        self.chk_debug_logging.setChecked(self.config.debug_logging)
         self.spn_scale.setValue(self.config.ui_scale_percent)
         self.sld_opacity.setValue(self.config.opacity)
         self.chk_always_on_top.setChecked(self.config.always_on_top)
@@ -1016,6 +1067,8 @@ class SettingsDialog(QDialog):
         self.config.autostart = self.chk_autostart.isChecked()
         self.config.start_delay_sec = self.spn_start_delay.value()
         set_autostart(self.config.autostart)
+        self.config.debug_logging = self.chk_debug_logging.isChecked()
+        set_debug_logging(self.config.debug_logging)
         self.config.ui_scale_percent = self.spn_scale.value()
         self.config.opacity = self.sld_opacity.value()
         self.config.always_on_top = self.chk_always_on_top.isChecked()
@@ -1087,6 +1140,7 @@ class SettingsDialog(QDialog):
         defaults = AppConfig()
         self.chk_autostart.setChecked(defaults.autostart)
         self.spn_start_delay.setValue(defaults.start_delay_sec)
+        self.chk_debug_logging.setChecked(defaults.debug_logging)
         self.spn_scale.setValue(defaults.ui_scale_percent)
         self.sld_opacity.setValue(defaults.opacity)
         self.chk_always_on_top.setChecked(defaults.always_on_top)
@@ -1138,3 +1192,90 @@ class SettingsDialog(QDialog):
     def _accept_changes(self) -> None:
         self._apply_changes()
         self.accept()
+
+    def _copy_diagnostics_to_clipboard(self) -> None:
+        """Copy an anonymized system & log diagnostics report to the clipboard."""
+        report = collect_diagnostics_report(self.config, qt_version=qVersion())
+        clipboard = QApplication.clipboard()
+        if clipboard is not None:
+            clipboard.setText(report)
+        QMessageBox.information(
+            self,
+            "Diagnose-Bericht kopiert",
+            "Der anonymisierte Diagnose-Bericht wurde in die Zwischenablage kopiert.\n"
+            "Passwörter, Benutzernamen und private IP-Adressen wurden automatisch entfernt.",
+        )
+
+    def _on_report_bug_clicked(self) -> None:
+        """Ask the user whether to include anonymized diagnostics before opening GitHub Issues."""
+        report = collect_diagnostics_report(self.config, qt_version=qVersion())
+
+        dlg = QDialog(self)
+        dlg.setWindowTitle("Fehler auf GitHub melden")
+        dlg.resize(560, 400)
+        layout = QVBoxLayout(dlg)
+        layout.setContentsMargins(14, 14, 14, 14)
+        layout.setSpacing(10)
+
+        lbl_intro = QLabel(
+            "Möchtest du die folgenden anonymisierten System- und Log-Daten an deinen "
+            "GitHub-Fehlerbericht anhängen?\n"
+            "Es findet kein automatischer Upload statt — du kannst den Bericht auf GitHub "
+            "vor dem Absenden prüfen und bearbeiten."
+        )
+        lbl_intro.setWordWrap(True)
+        layout.addWidget(lbl_intro)
+
+        preview = QPlainTextEdit()
+        preview.setReadOnly(True)
+        preview.setPlainText(report)
+        preview.setStyleSheet("font-family: Consolas, monospace; font-size: 8.5pt;")
+        layout.addWidget(preview, 1)
+
+        btn_row = QHBoxLayout()
+        btn_row.setSpacing(8)
+        btn_with_diag = QPushButton("Mit Diagnose-Daten auf GitHub melden")
+        btn_with_diag.setDefault(True)
+        btn_without_diag = QPushButton("Ohne Diagnose-Daten öffnen")
+        btn_cancel = QPushButton("Abbrechen")
+
+        choice = {"mode": "cancel"}
+
+        def _accept_with_diag() -> None:
+            choice["mode"] = "with_diag"
+            dlg.accept()
+
+        def _accept_without_diag() -> None:
+            choice["mode"] = "without_diag"
+            dlg.accept()
+
+        btn_with_diag.clicked.connect(_accept_with_diag)
+        btn_without_diag.clicked.connect(_accept_without_diag)
+        btn_cancel.clicked.connect(dlg.reject)
+
+        btn_row.addStretch(1)
+        btn_row.addWidget(btn_cancel)
+        btn_row.addWidget(btn_without_diag)
+        btn_row.addWidget(btn_with_diag)
+        layout.addLayout(btn_row)
+
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+
+        if choice["mode"] == "without_diag":
+            QDesktopServices.openUrl(QUrl(self.GITHUB_ISSUES_URL))
+            return
+
+        clipboard = QApplication.clipboard()
+        if clipboard is not None:
+            clipboard.setText(report)
+
+        issue_url, truncated = build_github_issue_url(report, self.GITHUB_ISSUES_URL)
+        QDesktopServices.openUrl(QUrl(issue_url))
+        if truncated:
+            QMessageBox.information(
+                self,
+                "Diagnose-Bericht in Zwischenablage",
+                "Da der Log-Ausschnitt sehr lang war, wurde der vollständige Diagnose-Bericht "
+                "zusätzlich in die Zwischenablage kopiert (auf GitHub mit Strg+V einfügbar).",
+            )

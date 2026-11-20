@@ -35,6 +35,11 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         action="store_true",
         help="Run a short verification of UI, sensors and event loop, then exit.",
     )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Enable detailed debug logging to rotating log file.",
+    )
     return parser.parse_args(argv)
 
 
@@ -61,6 +66,9 @@ def main(argv: list[str] | None = None) -> int:
         sync_kwin_skip_taskbar_rule()
 
     config = AppConfig.load()
+    from src.logger import setup_logging
+
+    setup_logging(debug=args.debug or config.debug_logging)
     if args.autostart and config.start_delay_sec > 0 and not args.self_test:
         import time
 

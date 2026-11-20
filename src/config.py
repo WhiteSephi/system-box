@@ -185,6 +185,7 @@ class AppConfig:
     snap_to_edges: bool = True
     autostart: bool = False
     start_delay_sec: int = 0  # 0..60 s (used with --autostart)
+    debug_logging: bool = False
 
     # Settings Dialog Geometry
     settings_pos_x: int = -1
@@ -290,6 +291,7 @@ class AppConfig:
         self.snap_to_edges = bool(self.snap_to_edges)
         self.autostart = bool(self.autostart)
         self.start_delay_sec = _safe_int(self.start_delay_sec, 0, 0, 60)
+        self.debug_logging = bool(self.debug_logging)
 
         self.settings_pos_x = _safe_int(self.settings_pos_x, -1)
         self.settings_pos_y = _safe_int(self.settings_pos_y, -1)

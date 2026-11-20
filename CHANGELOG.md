@@ -13,6 +13,11 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
   - **PageFaults/sec:** `Page-Matrix` (`page_matrix`, aufblitzende und ausglühende Speicherzellen).
   - **Disk I/O:** `R/W-Meter (Peak-Hold)` (`dual_meter`) und `Spiegel-Graph (R/W)` (`mirror_graph`, Read nach oben, Write nach unten).
   - Whitelist-Validierung für `cpu_viz_mode`, `ram_viz_mode`, `pf_viz_mode` und `disk_viz_mode` in `AppConfig`.
+- **Datensparsames Rotating-File-Logging & GitHub-Fehlerbericht (`src/logger.py`, `src/main.py`, `src/config.py`, `src/ui/settings_dlg.py`):**
+  - Rotierendes File-Logging im Ordner `<config_dir>/logs/` (max. 3 × 1 MB) inkl. `sys.excepthook`, `threading.excepthook` und Qt-Message-Weiterleitung.
+  - `PrivacyRedactionFilter` maskiert automatisch Home-Pfade (`~`), private/nicht-standardmäßige IPv4-Adressen (`<IP>`) und Secrets/Tokens (`***`).
+  - Neue Gruppe *Diagnose & Protokollierung* im Tab *Allgemein* mit Toggle *Erweitertes Debug-Logging aktivieren*, *📂 Log-Ordner öffnen* und *📋 Diagnose-Bericht kopieren*.
+  - Neuer transparenter Vorschau- und Bestätigungsdialog vor dem Öffnen vorausgefüllter GitHub-Issues über *🐛 Fehler melden* im Tab *Über*.
 
 ### Changed
 - **Einheitliche Benennung `System` & kompaktere Gruppe (`src/ui/cpu_widget.py`, `src/app.py`, `src/ui/settings_dlg.py`):**
