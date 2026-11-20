@@ -26,7 +26,7 @@ class CpuSystemWidget(BaseDesktopWidget):
     """Frameless CPU, RAM & Disk I/O monitor with stacked live graphs and compact mode."""
 
     def __init__(self, config: AppConfig) -> None:
-        super().__init__("cpu", "CPU & System", config)
+        super().__init__("cpu", "System", config)
         self._build_ui()
         self.on_apply_config()
 
@@ -38,7 +38,7 @@ class CpuSystemWidget(BaseDesktopWidget):
         # Header
         hdr = QHBoxLayout()
         hdr.setSpacing(6)
-        self.lbl_title = QLabel("CPU & System")
+        self.lbl_title = QLabel("System")
         self.lbl_temp_pill = QLabel("")
         self.lbl_temp_pill.setVisible(False)
         self.btn_settings = self.create_gear_button()

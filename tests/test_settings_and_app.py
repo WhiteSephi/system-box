@@ -146,7 +146,7 @@ def test_app_tray_menu_escaping_and_visibility() -> None:
         controller = SystemBoxApp(app, cfg)
         labels = [act.text() for act in controller._tray_widget_actions.values()]
         assert "Uhrzeit && Datum" in labels
-        assert "CPU && System" in labels
+        assert "System" in labels
         controller._poll_timer.stop()
         for w in controller._widgets.values():
             w.close()

@@ -62,7 +62,7 @@ class SystemBoxApp(QObject):
         for key, label in (
             ("clock", "Uhrzeit && Datum"),
             ("gpu", "GPU-Monitor"),
-            ("cpu", "CPU && System"),
+            ("cpu", "System"),
             ("storage", "Datenträger"),
         ):
             act = QAction(label, self._tray_menu, checkable=True)

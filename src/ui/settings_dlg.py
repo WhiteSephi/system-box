@@ -440,7 +440,7 @@ class SettingsDialog(QDialog):
         for key, label in (
             ("clock", "Uhrzeit & Datum"),
             ("gpu", "GPU-Monitor"),
-            ("cpu", "CPU & System"),
+            ("cpu", "System"),
             ("storage", "Datenträger"),
         ):
             row = QHBoxLayout()
@@ -559,7 +559,7 @@ class SettingsDialog(QDialog):
 
     def _build_cpu_viz_group(self) -> QGroupBox:
         """Build the Visualization group box for CPU, RAM, PageFaults and Disk I/O."""
-        grp_viz = QGroupBox("Darstellungsstil pro Sektion (Standard: Live-Graph)")
+        grp_viz = QGroupBox("Darstellung")
         v_form = QFormLayout(grp_viz)
 
         self.cmb_cpu_viz = self._make_viz_combo([
