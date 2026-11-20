@@ -48,6 +48,16 @@ class ClockWidget(BaseDesktopWidget):
     def on_apply_config(self) -> None:
         self.setMinimumSize(self.sc(150), self.sc(75))
 
+    @staticmethod
+    def _fit_font(text: str, max_width: float, target_pt: float, min_pt: float) -> QFont:
+        """Return a bold Segoe UI font scaled down if text exceeds max_width."""
+        font = QFont("Segoe UI", 10, QFont.Weight.Bold)
+        font.setPointSizeF(target_pt)
+        text_w = QFontMetricsF(font).horizontalAdvance(text)
+        if text_w > max_width and text_w > 0:
+            font.setPointSizeF(max(min_pt, target_pt * (max_width / text_w) * 0.96))
+        return font
+
     def paintEvent(self, event: QPaintEvent) -> None:
         super().paintEvent(event)
 
@@ -116,8 +126,11 @@ class ClockWidget(BaseDesktopWidget):
         painter.setBrush(temp_col)
         painter.drawRoundedRect(month_badge_rect, self.sc(3), self.sc(3))
         painter.setPen(QColor("#FFFFFF"))
-        painter.setFont(self.make_font(9.0, bold=True))
-        painter.drawText(month_badge_rect, Qt.AlignmentFlag.AlignCenter, _MONTHS_DE[now.month - 1])
+        month_txt = _MONTHS_DE[now.month - 1]
+        month_pt = max(8.5, min(month_badge_rect.height() * 0.56, 18.0 * self.ui_scale))
+        month_font = self._fit_font(month_txt, month_badge_rect.width() * 0.88, month_pt, 7.5)
+        painter.setFont(month_font)
+        painter.drawText(month_badge_rect, Qt.AlignmentFlag.AlignCenter, month_txt)
 
         # Vertical divider
         painter.setPen(QPen(grid_col, max(1.0, 1.5 * self.ui_scale)))
@@ -131,13 +144,19 @@ class ClockWidget(BaseDesktopWidget):
         painter.setBrush(vram_col)
         painter.drawRoundedRect(wd_rect, self.sc(3), self.sc(3))
         painter.setPen(QColor("#0D1117"))
-        painter.setFont(self.make_font(10.0, bold=True))
-        painter.drawText(wd_rect, Qt.AlignmentFlag.AlignCenter, _WEEKDAYS_DE[now.weekday()])
+        wd_txt = _WEEKDAYS_DE[now.weekday()]
+        wd_pt = max(9.5, min(wd_rect.height() * 0.56, 22.0 * self.ui_scale))
+        wd_font = self._fit_font(wd_txt, wd_rect.width() * 0.88, wd_pt, 8.0)
+        painter.setFont(wd_font)
+        painter.drawText(wd_rect, Qt.AlignmentFlag.AlignCenter, wd_txt)
 
         year_rect = QRectF(right_x, block_top + block_h * 0.50, right_w, block_h * 0.45)
-        painter.setFont(self.make_font(12.5, bold=True))
+        year_txt = str(now.year)
+        year_pt = max(10.5, min(year_rect.height() * 0.50, 22.0 * self.ui_scale))
+        year_font = self._fit_font(year_txt, year_rect.width() * 0.92, year_pt, 9.0)
+        painter.setFont(year_font)
         painter.setPen(title_col)
-        painter.drawText(year_rect, Qt.AlignmentFlag.AlignCenter, str(now.year))
+        painter.drawText(year_rect, Qt.AlignmentFlag.AlignCenter, year_txt)
 
         # 4. Optional Uptime footer
         if self.config.clock_show_uptime:
