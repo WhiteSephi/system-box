@@ -7,6 +7,7 @@ from PySide6.QtCore import QPoint, QTimer
 from PySide6.QtGui import QContextMenuEvent
 from PySide6.QtWidgets import QApplication, QLabel, QMenu
 
+from src import __version__
 from src.config import AppConfig
 from src.sensors.models import GpuInfo, SystemSnapshot
 from src.sensors.psutil_provider import PsutilSystemProvider
@@ -247,12 +248,17 @@ def test_settings_dialog_about_tab_grid_and_narrow_resize() -> None:
 
     about_tab = dlg.tabs.currentWidget()
     assert about_tab is not None
+    assert dlg.lbl_about_version.text() == f"v{__version__}"
+    assert "WhiteSephi" in dlg.lbl_about_author.text()
+
     grids = about_tab.findChildren(QGridLayout)
-    assert len(grids) == 1
-    grid = grids[0]
-    assert grid.rowCount() == 2
-    assert grid.columnCount() == 2
-    assert grid.count() == 4
+    btn_grids = [
+        g for g in grids
+        if g.rowCount() == 2 and g.columnCount() == 2 and g.count() == 4
+        and isinstance(g.itemAtPosition(0, 0).widget(), QPushButton)
+    ]
+    assert len(btn_grids) == 1
+    grid = btn_grids[0]
     for r in range(2):
         for c in range(2):
             item = grid.itemAtPosition(r, c)

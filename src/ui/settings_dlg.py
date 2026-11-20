@@ -7,7 +7,7 @@ import platform
 import sys
 
 from PySide6.QtCore import QPoint, QRect, QSize, Qt, QUrl, qVersion
-from PySide6.QtGui import QCloseEvent, QDesktopServices, QHideEvent, QPalette
+from PySide6.QtGui import QCloseEvent, QDesktopServices, QHideEvent, QIcon, QPalette
 from PySide6.QtWidgets import (
     QApplication,
     QButtonGroup,
@@ -46,6 +46,7 @@ from src.sensors.disk_space import format_storage_size, read_disk_spaces
 from src.sensors.models import DiskSpaceInfo, GpuInfo
 from src.themes import THEMES
 from src.ui.color_picker import ColorButton
+from src.ui.icons import create_ui_icon
 from src.ui.tray import create_systembox_icon
 
 
@@ -860,114 +861,170 @@ class SettingsDialog(QDialog):
         return tab
 
     def _build_about_tab(self) -> QWidget:
-        tab = QWidget()
-        layout = QVBoxLayout(tab)
-        layout.setSpacing(10)
-
-        # Group 1: Über SystemBox (analog TrafficBox)
-        grp_about = QGroupBox("Über SystemBox")
-        about_layout = QVBoxLayout(grp_about)
+        """Build a sleek, compact 'Über' tab that fits without any scrollbar."""
+        tab_about = QWidget()
+        about_layout = QVBoxLayout(tab_about)
+        about_layout.setContentsMargins(10, 10, 10, 10)
         about_layout.setSpacing(10)
+
+        # 1. Hero / App Identity Group
+        hero_group = QGroupBox("Über SystemBox")
+        hero_vlayout = QVBoxLayout(hero_group)
+        hero_vlayout.setContentsMargins(12, 10, 12, 10)
+        hero_vlayout.setSpacing(8)
 
         top_row = QHBoxLayout()
         top_row.setSpacing(12)
-        lbl_icon = QLabel()
-        lbl_icon.setPixmap(create_systembox_icon(self.config.primary_color).pixmap(44, 44))
-        lbl_icon.setFixedSize(48, 48)
-        top_row.addWidget(lbl_icon, 0, Qt.AlignmentFlag.AlignTop)
 
-        info_col = QVBoxLayout()
-        info_col.setSpacing(3)
-        title_row = QHBoxLayout()
-        title_row.setSpacing(8)
-        lbl_name = QLabel("<b style='font-size: 14pt;'>SystemBox</b>")
-        lbl_ver = QLabel(f"v{__version__}")
-        lbl_ver.setStyleSheet(
-            f"color: {self.config.primary_color}; border: 1px solid {self.config.primary_color}; "
-            "border-radius: 5px; padding: 1px 7px; font-weight: bold;"
+        lbl_app_icon = QLabel()
+        lbl_app_icon.setPixmap(create_systembox_icon(self.config.primary_color).pixmap(QSize(36, 36)))
+        lbl_app_icon.setFixedSize(38, 38)
+        lbl_app_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        top_row.addWidget(lbl_app_icon)
+
+        title_col = QVBoxLayout()
+        title_col.setSpacing(3)
+
+        name_badge_row = QHBoxLayout()
+        name_badge_row.setSpacing(8)
+        lbl_app_name = QLabel("SystemBox")
+        lbl_app_name.setStyleSheet("font-size: 12pt; font-weight: bold;")
+        self.lbl_about_version = QLabel(f"v{__version__}")
+        self.lbl_about_version.setStyleSheet(
+            "color: #00E5FF; background-color: rgba(0, 229, 255, 0.12); "
+            "border: 1px solid rgba(0, 229, 255, 0.4); border-radius: 6px; "
+            "padding: 1px 7px; font-weight: bold; font-size: 8.5pt;"
         )
-        title_row.addWidget(lbl_name)
-        title_row.addWidget(lbl_ver)
-        title_row.addStretch(1)
-        info_col.addLayout(title_row)
+        name_badge_row.addWidget(lbl_app_name)
+        name_badge_row.addWidget(self.lbl_about_version)
+        name_badge_row.addStretch(1)
 
-        lbl_desc = QLabel(
+        is_dark_pal = self.palette().color(QPalette.ColorRole.Window).lightness() < 128
+        gh_col = "#E2E8F0" if is_dark_pal else "#1E293B"
+        gh_pix_sm = create_ui_icon("github", gh_col, 14)
+
+        author_row = QHBoxLayout()
+        author_row.setContentsMargins(0, 0, 0, 0)
+        author_row.setSpacing(5)
+        lbl_gh_icon = QLabel()
+        lbl_gh_icon.setPixmap(gh_pix_sm)
+        lbl_gh_icon.setFixedSize(14, 14)
+        self.lbl_about_author = QLabel("von <b>WhiteSephi</b>")
+        self.lbl_about_author.setTextFormat(Qt.TextFormat.RichText)
+        self.lbl_about_author.setStyleSheet("color: #94A3B8; font-size: 8.5pt;")
+        author_row.addWidget(lbl_gh_icon)
+        author_row.addWidget(self.lbl_about_author)
+        author_row.addStretch(1)
+
+        lbl_tagline = QLabel(
             "Schlankes Live-Desktop-Widget-System für Uhrzeit/Datum, GPU- und CPU/System-Metriken."
         )
-        lbl_desc.setWordWrap(True)
-        info_col.addWidget(lbl_desc)
-        top_row.addLayout(info_col, 1)
-        about_layout.addLayout(top_row)
+        lbl_tagline.setWordWrap(True)
+        lbl_tagline.setStyleSheet("color: #8E9297; font-size: 8.5pt;")
 
-        btn_grid = QGridLayout()
-        btn_grid.setSpacing(8)
+        title_col.addLayout(name_badge_row)
+        title_col.addLayout(author_row)
+        title_col.addWidget(lbl_tagline)
+        top_row.addLayout(title_col, 1)
+        hero_vlayout.addLayout(top_row)
 
-        btn_gh = QPushButton("🌐 GitHub")
-        btn_gh.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn_gh.clicked.connect(lambda: QDesktopServices.openUrl(QUrl(self.GITHUB_REPO_URL)))
-        btn_grid.addWidget(btn_gh, 0, 0)
+        # Quick Action Buttons (2x2 grid prevents horizontal clipping on narrow windows)
+        links_grid = QGridLayout()
+        links_grid.setSpacing(6)
 
-        btn_rel = QPushButton("🚀 Releases")
-        btn_rel.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn_rel.clicked.connect(lambda: QDesktopServices.openUrl(QUrl(self.GITHUB_RELEASES_URL)))
-        btn_grid.addWidget(btn_rel, 0, 1)
+        self.btn_about_github = QPushButton(" GitHub")
+        self.btn_about_github.setIcon(QIcon(gh_pix_sm))
+        self.btn_about_github.setIconSize(QSize(14, 14))
+        self.btn_about_github.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_about_github.setToolTip(self.GITHUB_REPO_URL)
+        self.btn_about_github.clicked.connect(
+            lambda: QDesktopServices.openUrl(QUrl(self.GITHUB_REPO_URL))
+        )
+
+        self.btn_about_releases = QPushButton("🚀 Releases")
+        self.btn_about_releases.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_about_releases.setToolTip(self.GITHUB_RELEASES_URL)
+        self.btn_about_releases.clicked.connect(
+            lambda: QDesktopServices.openUrl(QUrl(self.GITHUB_RELEASES_URL))
+        )
 
         self.btn_about_issues = QPushButton("🐛 Fehler melden")
         self.btn_about_issues.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._set_tooltip(
-            self.btn_about_issues,
-            "Öffnet die GitHub-Issue-Seite (optional mit anonymisiertem Diagnose-Bericht).",
+        self.btn_about_issues.setToolTip(
+            "Öffnet die GitHub-Issue-Seite (optional mit anonymisiertem Diagnose-Bericht)."
         )
         self.btn_about_issues.clicked.connect(self._on_report_bug_clicked)
-        btn_grid.addWidget(self.btn_about_issues, 1, 0)
 
-        btn_cfg = QPushButton("📁 Konfig-Ordner")
-        btn_cfg.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn_cfg.clicked.connect(
+        self.btn_about_config_dir = QPushButton("📁 Konfig-Ordner")
+        self.btn_about_config_dir.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_about_config_dir.setToolTip("Öffnet den Konfigurationsordner im Dateimanager")
+        self.btn_about_config_dir.clicked.connect(
             lambda: QDesktopServices.openUrl(QUrl.fromLocalFile(str(AppConfig.config_path().parent)))
         )
-        btn_grid.addWidget(btn_cfg, 1, 1)
 
-        about_layout.addLayout(btn_grid)
-        layout.addWidget(grp_about)
+        links_grid.addWidget(self.btn_about_github, 0, 0)
+        links_grid.addWidget(self.btn_about_releases, 0, 1)
+        links_grid.addWidget(self.btn_about_issues, 1, 0)
+        links_grid.addWidget(self.btn_about_config_dir, 1, 1)
+        hero_vlayout.addLayout(links_grid)
+        about_layout.addWidget(hero_group)
 
-        # Group 2: System-Diagnose & Rechtliches
-        grp_diag = QGroupBox("System-Diagnose && Rechtliches")
-        d_form = QFormLayout(grp_diag)
-        d_form.setVerticalSpacing(6)
-        d_form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow)
+        # 2. System-Diagnose & Rechtliches Group
+        info_group = QGroupBox("System-Diagnose && Rechtliches")
+        info_vlayout = QVBoxLayout(info_group)
+        info_vlayout.setContentsMargins(12, 10, 12, 10)
+        info_vlayout.setSpacing(6)
+
+        info_grid = QGridLayout()
+        info_grid.setHorizontalSpacing(10)
+        info_grid.setVerticalSpacing(4)
+        info_grid.setColumnStretch(1, 1)
 
         mode_str = "Binary" if getattr(sys, "frozen", False) else "Quellcode"
         os_str = f"{platform.system()} {platform.release()} ({platform.machine()})"
         runtime_str = f"{os_str} • Python {platform.python_version()} • Qt {qVersion()} • {mode_str}"
-        lbl_runtime = self._make_wrapping_info_label(runtime_str, selectable=True)
-        d_form.addRow("Laufzeit:", lbl_runtime)
+
+        lbl_sys_val = QLabel(runtime_str)
+        lbl_sys_val.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        lbl_sys_val.setWordWrap(True)
+        lbl_sys_val.setStyleSheet("font-size: 8.5pt;")
 
         cfg_dir = AppConfig.config_path().parent
-        loc_str = f"Portabel ({cfg_dir})" if cfg_dir.name == "local" else f"Systemprofil ({cfg_dir})"
-        lbl_loc = self._make_wrapping_info_label(loc_str, selectable=True)
-        d_form.addRow("Speicherort:", lbl_loc)
+        loc_str = "Portabel" if cfg_dir.name == "local" else "Systemprofil"
+        lbl_cfg_val = QLabel(f"{loc_str} ({cfg_dir})")
+        lbl_cfg_val.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        lbl_cfg_val.setWordWrap(True)
+        lbl_cfg_val.setToolTip(f"Pfad: {cfg_dir}")
+        lbl_cfg_val.setStyleSheet("font-size: 8.5pt;")
 
         gpu_str = ", ".join(f"[{g.index}] {g.name} ({g.backend})" for g in self._gpus) or "Keine dedizierte GPU erkannt"
-        lbl_gpu = self._make_wrapping_info_label(gpu_str, selectable=True)
-        d_form.addRow("Hardware:", lbl_gpu)
+        lbl_gpu_val = QLabel(gpu_str)
+        lbl_gpu_val.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        lbl_gpu_val.setWordWrap(True)
+        lbl_gpu_val.setStyleSheet("font-size: 8.5pt;")
 
-        lbl_notes = self._make_wrapping_info_label("Open Source (MIT) • 100 % lokal ohne Telemetrie")
-        d_form.addRow("Hinweise:", lbl_notes)
-        layout.addWidget(grp_diag)
+        lbl_notes = QLabel("Open Source (MIT) • 100 % lokal ohne Telemetrie")
+        lbl_notes.setWordWrap(True)
+        lbl_notes.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        lbl_notes.setStyleSheet("font-size: 8.5pt;")
 
-        layout.addStretch(1)
-        return tab
+        rows = [
+            ("Laufzeit:", lbl_sys_val),
+            ("Speicherort:", lbl_cfg_val),
+            ("Hardware:", lbl_gpu_val),
+            ("Hinweise:", lbl_notes),
+        ]
+        for row_idx, (key_text, val_lbl) in enumerate(rows):
+            lbl_key = QLabel(key_text)
+            lbl_key.setStyleSheet("font-size: 8.5pt;")
+            info_grid.addWidget(lbl_key, row_idx, 0, Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+            info_grid.addWidget(val_lbl, row_idx, 1)
 
-    @staticmethod
-    def _make_wrapping_info_label(text: str, selectable: bool = False) -> QLabel:
-        """Create a word-wrapping info label that expands cleanly in QFormLayout."""
-        lbl = QLabel(text)
-        lbl.setWordWrap(True)
-        lbl.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        if selectable:
-            lbl.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-        return lbl
+        info_vlayout.addLayout(info_grid)
+        about_layout.addWidget(info_group)
+
+        about_layout.addStretch(1)
+        return tab_about
 
     def _load_preset_colors(self) -> None:
         name = self.cmb_theme.currentText()

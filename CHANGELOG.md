@@ -25,6 +25,9 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
   - Neue Gruppe `Darstellung` direkt im `System`-Tab ergänzt.
   - Disk-I/O-Auswahl zeigt nun kompakte Laufwerksnamen inkl. Modell und zugeordneter Laufwerksbuchstaben (`PsutilSystemProvider.list_disk_choices()`).
   - Schriftgrößen von Wochentag-Badge, Monats-Badge und Jahreszahl im Uhrzeit-Widget (`src/ui/clock_widget.py`) skalieren nun proportional zur Box-Größe.
+  - **„Über“-Tab Design an TrafficBox angepasst (`src/ui/settings_dlg.py`, `src/ui/icons.py`):**
+    - Über-Hero-Layout mit App-Icon, Version-Badge im Pill-Stil, GitHub-Autor-Zeile (`von WhiteSephi`), Tagline und 2×2 Quick-Action-Buttons mit GitHub-Vektor-Icon.
+    - System-Diagnose & Rechtliches mit übersichtlichem Grid (Laufzeit, Speicherort, Hardware, Hinweise) und Schriftgröße `8.5pt`.
 
 ## [0.14.6] - 2026-11-20
 ### Changed
