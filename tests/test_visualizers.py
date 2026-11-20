@@ -30,15 +30,15 @@ def test_config_viz_modes_roundtrip_and_whitelist(tmp_path: Path) -> None:
 
     cfg.cpu_viz_mode = "core_bars"
     cfg.ram_viz_mode = "grid_blocks"
-    cfg.pf_viz_mode = "pulse_meter"
-    cfg.disk_viz_mode = "dual_meter"
+    cfg.pf_viz_mode = "page_matrix"
+    cfg.disk_viz_mode = "mirror_graph"
     assert cfg.save(cfg_path)
 
     loaded = AppConfig.load(cfg_path)
     assert loaded.cpu_viz_mode == "core_bars"
     assert loaded.ram_viz_mode == "grid_blocks"
-    assert loaded.pf_viz_mode == "pulse_meter"
-    assert loaded.disk_viz_mode == "dual_meter"
+    assert loaded.pf_viz_mode == "page_matrix"
+    assert loaded.disk_viz_mode == "mirror_graph"
 
     # Invalid values must fall back to "graph"
     raw = json.loads(cfg_path.read_text(encoding="utf-8"))
@@ -83,8 +83,8 @@ def test_cpu_widget_renders_all_visualizer_modes() -> None:
 
     modes = [
         ("graph", "graph", "graph", "graph"),
-        ("core_bars", "grid_blocks", "pulse_meter", "dual_meter"),
-        ("core_heatmap", "segmented_bar", "impulse_bars", "activity_leds"),
+        ("core_bars", "grid_blocks", "impulse_bars", "dual_meter"),
+        ("core_heatmap", "segmented_bar", "page_matrix", "mirror_graph"),
     ]
     for idx, (c_m, r_m, p_m, d_m) in enumerate(modes):
         cfg.cpu_viz_mode = c_m
@@ -115,14 +115,14 @@ def test_settings_dialog_system_viz_and_save() -> None:
     dlg.cmb_cpu_viz.setCurrentIndex(1)
     dlg.cmb_ram_viz.setCurrentIndex(1)
     dlg.cmb_pf_viz.setCurrentIndex(2)
-    dlg.cmb_disk_viz.setCurrentIndex(1)
+    dlg.cmb_disk_viz.setCurrentIndex(2)
     with patch("src.ui.settings_dlg.set_autostart"):
         dlg._save_to_config()
 
     assert cfg.cpu_viz_mode == "core_bars"
     assert cfg.ram_viz_mode == "grid_blocks"
-    assert cfg.pf_viz_mode == "impulse_bars"
-    assert cfg.disk_viz_mode == "dual_meter"
+    assert cfg.pf_viz_mode == "page_matrix"
+    assert cfg.disk_viz_mode == "mirror_graph"
 
     with patch("src.ui.settings_dlg.QMessageBox.question", return_value=QMessageBox.StandardButton.Yes):
         dlg._reset_defaults()

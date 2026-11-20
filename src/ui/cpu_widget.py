@@ -11,12 +11,12 @@ from src.sensors.models import SystemSnapshot
 from src.ui.base_widget import BaseDesktopWidget
 from src.ui.graph_canvas import MiniLiveGraphWidget
 from src.ui.visualizers import (
-    ActivityLedsWidget,
     CoreBarsWidget,
     CoreHeatmapWidget,
     DualIoMeterWidget,
     ImpulseBarsWidget,
-    PulseMeterWidget,
+    MirrorGraphWidget,
+    PageMatrixWidget,
     RamGridBoxWidget,
     RamSegmentedBarWidget,
 )
@@ -118,12 +118,12 @@ class CpuSystemWidget(BaseDesktopWidget):
             dynamic_scale=True,
             min_ceiling=128.0,
         )
-        self.viz_pf_pulse = PulseMeterWidget(self.config.vram_color, self.config.grid_color, self.config.temp_color)
         self.viz_pf_impulse = ImpulseBarsWidget(self.config.history_seconds, self.config.vram_color, self.config.grid_color, self.config.temp_color)
+        self.viz_pf_matrix = PageMatrixWidget(self.config.vram_color, self.config.grid_color, self.config.temp_color)
         self.stack_pf = QStackedWidget()
         self.stack_pf.addWidget(self.graph_pf)
-        self.stack_pf.addWidget(self.viz_pf_pulse)
         self.stack_pf.addWidget(self.viz_pf_impulse)
+        self.stack_pf.addWidget(self.viz_pf_matrix)
         v_pf.addLayout(r_pf)
         v_pf.addWidget(self.stack_pf)
         self._layout.addWidget(self._sec_pf, 1)
@@ -148,11 +148,11 @@ class CpuSystemWidget(BaseDesktopWidget):
             dynamic_scale=True,
         )
         self.viz_disk_meter = DualIoMeterWidget(self.config.vram_color, self.config.secondary_color, self.config.grid_color)
-        self.viz_disk_leds = ActivityLedsWidget(self.config.vram_color, self.config.secondary_color, self.config.grid_color)
+        self.viz_disk_mirror = MirrorGraphWidget(self.config.history_seconds, self.config.vram_color, self.config.secondary_color, self.config.grid_color)
         self.stack_disk = QStackedWidget()
         self.stack_disk.addWidget(self.graph_disk)
         self.stack_disk.addWidget(self.viz_disk_meter)
-        self.stack_disk.addWidget(self.viz_disk_leds)
+        self.stack_disk.addWidget(self.viz_disk_mirror)
         v3.addLayout(r3)
         v3.addWidget(self.stack_disk)
         self._layout.addWidget(self._sec_disk, 1)
@@ -196,14 +196,14 @@ class CpuSystemWidget(BaseDesktopWidget):
         self.viz_ram_bar.set_colors(self.config.secondary_color, self.config.grid_color, muted_color=self.config.muted_color)
 
         self.graph_pf.set_colors(self.config.vram_color, self.config.grid_color)
-        self.viz_pf_pulse.set_colors(self.config.vram_color, self.config.grid_color, accent_color=self.config.temp_color)
         self.viz_pf_impulse.set_colors(self.config.vram_color, self.config.grid_color, accent_color=self.config.temp_color)
+        self.viz_pf_matrix.set_colors(self.config.vram_color, self.config.grid_color, accent_color=self.config.temp_color)
 
         self.graph_disk.set_colors(self.config.vram_color, self.config.grid_color, self.config.secondary_color)
         self.viz_disk_meter.set_colors(self.config.vram_color, self.config.grid_color, secondary_color=self.config.secondary_color)
-        self.viz_disk_leds.set_colors(self.config.vram_color, self.config.grid_color, secondary_color=self.config.secondary_color)
+        self.viz_disk_mirror.set_colors(self.config.vram_color, self.config.grid_color, secondary_color=self.config.secondary_color)
 
-        for g in (self.graph_cpu, self.graph_ram, self.graph_pf, self.graph_disk, self.viz_pf_impulse):
+        for g in (self.graph_cpu, self.graph_ram, self.graph_pf, self.graph_disk, self.viz_pf_impulse, self.viz_disk_mirror):
             g.set_history_length(self.config.history_seconds)
 
         for w in (
@@ -214,11 +214,11 @@ class CpuSystemWidget(BaseDesktopWidget):
             self.viz_ram_grid,
             self.viz_ram_bar,
             self.graph_pf,
-            self.viz_pf_pulse,
             self.viz_pf_impulse,
+            self.viz_pf_matrix,
             self.graph_disk,
             self.viz_disk_meter,
-            self.viz_disk_leds,
+            self.viz_disk_mirror,
         ):
             w.set_ui_scale(self.ui_scale)
 
@@ -263,8 +263,8 @@ class CpuSystemWidget(BaseDesktopWidget):
         if self.config.cpu_show_page_faults:
             pf_val = cpu.page_faults_per_sec if cpu.page_faults_per_sec is not None else 0.0
             self.graph_pf.push_value(pf_val)
-            self.viz_pf_pulse.push_value(pf_val)
             self.viz_pf_impulse.push_value(pf_val)
+            self.viz_pf_matrix.push_value(pf_val)
             self.lbl_pf.setText(f"PageFaults/sec: {pf_val:.0f}")
             active_pf = self.stack_pf.currentWidget()
             ceiling = active_pf.current_ceiling() if hasattr(active_pf, "current_ceiling") else self.graph_pf.current_ceiling()
@@ -275,4 +275,4 @@ class CpuSystemWidget(BaseDesktopWidget):
             self.lbl_disk_w.setText(f"W: {cpu.disk_write_mb_s:.1f} MB/s")
             self.graph_disk.push_value(cpu.disk_read_mb_s, secondary_value=cpu.disk_write_mb_s)
             self.viz_disk_meter.push_io(cpu.disk_read_mb_s, cpu.disk_write_mb_s)
-            self.viz_disk_leds.push_io(cpu.disk_read_mb_s, cpu.disk_write_mb_s)
+            self.viz_disk_mirror.push_io(cpu.disk_read_mb_s, cpu.disk_write_mb_s)

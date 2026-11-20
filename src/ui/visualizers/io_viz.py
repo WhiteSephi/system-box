@@ -1,12 +1,13 @@
-"""PageFault and Disk I/O visualizers (pulse meters, impulse bars, dual I/O bars, LED rows)."""
+"""PageFault and Disk I/O visualizers (impulse bars, page matrix, dual R/W meter, mirror graph)."""
 
 from __future__ import annotations
 
 from collections import deque
 import math
+import random
 
-from PySide6.QtCore import QRectF, Qt
-from PySide6.QtGui import QColor, QFont, QPainter
+from PySide6.QtCore import QPointF, QRectF, Qt, QTimer
+from PySide6.QtGui import QColor, QFont, QPainter, QPainterPath, QPen
 
 from src.ui.visualizers.base import BaseVisualizerWidget
 
@@ -25,47 +26,8 @@ def _io_log_ratio(value: float) -> float:
     return min(1.0, math.log1p(value * 4.0) / math.log1p(2000.0))
 
 
-class PulseMeterWidget(BaseVisualizerWidget):
-    """Logarithmic 16-LED meter with slowly decaying peak-hold marker for PageFaults/sec."""
-
-    def __init__(self, primary_color: str = "#3FB950", grid_color: str = "#32383D", accent_color: str = "#F85149") -> None:
-        super().__init__(primary_color=primary_color, grid_color=grid_color, accent_color=accent_color)
-        self._current = 0.0
-        self._peak_ratio = 0.0
-        self._peak_raw = 0.0
-
-    def push_value(self, value: float) -> None:
-        """Push latest PageFaults/sec sample and update decaying peak-hold."""
-        self._current = max(0.0, float(value))
-        ratio = _log_ratio(self._current)
-        if ratio >= self._peak_ratio:
-            self._peak_ratio = ratio
-        else:
-            self._peak_ratio = max(ratio, self._peak_ratio * 0.88)
-        self._peak_raw = max(128.0, self._current, self._peak_raw * 0.96)
-        self.update()
-
-    def current_ceiling(self) -> float:
-        """Return recent dynamic ceiling for display in header label."""
-        return max(128.0, self._peak_raw)
-
-    def paintEvent(self, _event: object) -> None:
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
-        inner = self._begin_frame(painter)
-
-        segments = 16
-        ratio = _log_ratio(self._current)
-        lit = int(round(ratio * segments))
-        peak_idx = int(round(self._peak_ratio * (segments - 1))) if self._peak_ratio > 0.03 else None
-        bar_h = min(inner.height(), max(12.0, 18.0 * self._ui_scale))
-        y = inner.center().y() - bar_h * 0.5
-        self._draw_led_row(painter, QRectF(inner.left(), y, inner.width(), bar_h), segments, lit, self._primary_color, peak_idx)
-        painter.end()
-
-
 class ImpulseBarsWidget(BaseVisualizerWidget):
-    """Renders spike history (PageFaults/sec) as crisp vertical impulse needles."""
+    """Renders spike history (PageFaults/sec) as vertical impulse needles with peak cap dots."""
 
     def __init__(self, history_len: int = 60, primary_color: str = "#3FB950", grid_color: str = "#32383D", accent_color: str = "#F85149") -> None:
         super().__init__(primary_color=primary_color, grid_color=grid_color, accent_color=accent_color)
@@ -102,24 +64,116 @@ class ImpulseBarsWidget(BaseVisualizerWidget):
             return
         ceiling = self.current_ceiling()
         step = inner.width() / n
-        bar_w = max(1.5, step * 0.62)
+        bar_w = max(1.5, step * 0.58)
+        cap_h = max(1.5, 2.0 * self._ui_scale)
 
         painter.setPen(Qt.PenStyle.NoPen)
         for i, val in enumerate(samples):
             x = inner.left() + i * step
-            ratio = min(1.0, val / ceiling)
-            h = max(1.0, inner.height() * ratio) if val > 0.0 else 1.0
-            col = self._accent_color if ratio >= 0.75 else self._primary_color
             if val <= 0.0:
-                col = QColor(self._grid_color)
-                col.setAlpha(150)
-            painter.setBrush(col)
-            painter.drawRoundedRect(QRectF(x, inner.bottom() - h, bar_w, h), 1.0, 1.0)
+                idle_col = QColor(self._grid_color)
+                idle_col.setAlpha(150)
+                painter.setBrush(idle_col)
+                painter.drawRect(QRectF(x, inner.bottom() - 1.5, bar_w, 1.5))
+            else:
+                ratio = min(1.0, val / ceiling)
+                h = max(3.5, inner.height() * ratio)
+                col = self._accent_color if ratio >= 0.75 else self._primary_color
+                painter.setBrush(col)
+                top_y = inner.bottom() - h
+                painter.drawRoundedRect(QRectF(x, top_y, bar_w, h), 1.0, 1.0)
+                painter.setBrush(QColor("#F0F6FC"))
+                painter.drawRect(QRectF(x, top_y, bar_w, min(cap_h, h)))
+        painter.end()
+
+
+class PageMatrixWidget(BaseVisualizerWidget):
+    """20x3 memory-page chip matrix that sparks and softly fades out on PageFaults."""
+
+    _COLS = 20
+    _ROWS = 3
+
+    def __init__(self, primary_color: str = "#3FB950", grid_color: str = "#32383D", accent_color: str = "#F85149") -> None:
+        super().__init__(primary_color=primary_color, grid_color=grid_color, accent_color=accent_color)
+        total = self._COLS * self._ROWS
+        self._intensity: list[float] = [0.0] * total
+        self._is_hot: list[bool] = [False] * total
+        self._peak_raw = 128.0
+        self._fade_timer = QTimer(self)
+        self._fade_timer.setInterval(85)
+        self._fade_timer.timeout.connect(self._on_fade_tick)
+
+    def push_value(self, value: float) -> None:
+        """Spark random memory cells proportional to PageFaults/sec."""
+        val = max(0.0, float(value))
+        self._peak_raw = max(128.0, val, self._peak_raw * 0.96)
+        if val > 0.0:
+            ratio = _log_ratio(val)
+            sparks = max(1, min(32, int(round(ratio * 32))))
+            hot_spike = ratio >= 0.65
+            total = len(self._intensity)
+            for _ in range(sparks):
+                idx = random.randrange(total)
+                self._intensity[idx] = 1.0
+                self._is_hot[idx] = hot_spike and random.random() < 0.75
+            if not self._fade_timer.isActive():
+                self._fade_timer.start()
+        self.update()
+
+    def current_ceiling(self) -> float:
+        """Return recent dynamic ceiling for display in header label."""
+        return max(128.0, self._peak_raw)
+
+    def _on_fade_tick(self) -> None:
+        any_lit = False
+        for i, v in enumerate(self._intensity):
+            if v > 0.03:
+                nxt = v * 0.83
+                if nxt <= 0.03:
+                    self._intensity[i] = 0.0
+                    self._is_hot[i] = False
+                else:
+                    self._intensity[i] = nxt
+                    any_lit = True
+            else:
+                self._intensity[i] = 0.0
+                self._is_hot[i] = False
+        if not any_lit:
+            self._fade_timer.stop()
+        self.update()
+
+    def paintEvent(self, _event: object) -> None:
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        inner = self._begin_frame(painter)
+
+        gap = max(1.5, 2.0 * self._ui_scale)
+        cw = max(2.5, (inner.width() - gap * (self._COLS - 1)) / self._COLS)
+        ch = max(2.5, (inner.height() - gap * (self._ROWS - 1)) / self._ROWS)
+        radius = max(1.0, 1.8 * self._ui_scale)
+
+        base_col = QColor(self._grid_color)
+        base_col.setAlpha(120)
+        painter.setPen(Qt.PenStyle.NoPen)
+
+        for r in range(self._ROWS):
+            for c in range(self._COLS):
+                idx = r * self._COLS + c
+                cell = QRectF(inner.left() + c * (cw + gap), inner.top() + r * (ch + gap), cw, ch)
+                painter.setBrush(base_col)
+                painter.drawRoundedRect(cell, radius, radius)
+
+                glow = self._intensity[idx]
+                if glow > 0.03:
+                    col = QColor(self._accent_color if self._is_hot[idx] else self._primary_color)
+                    col.setAlpha(int(round(max(20.0, min(255.0, glow * 255.0)))))
+                    painter.setBrush(col)
+                    painter.drawRoundedRect(cell, radius, radius)
         painter.end()
 
 
 class DualIoMeterWidget(BaseVisualizerWidget):
-    """Dual horizontal Read/Write throughput bars with sqrt scaling and peak-hold markers."""
+    """Dual horizontal Read/Write throughput bars with log scaling and peak-hold markers."""
 
     def __init__(self, read_color: str = "#3FB950", write_color: str = "#FFEA00", grid_color: str = "#32383D") -> None:
         super().__init__(primary_color=read_color, grid_color=grid_color, secondary_color=write_color)
@@ -175,39 +229,74 @@ class DualIoMeterWidget(BaseVisualizerWidget):
         painter.end()
 
 
-class ActivityLedsWidget(BaseVisualizerWidget):
-    """Retro dual R/W LED strips for Disk I/O activity."""
+class MirrorGraphWidget(BaseVisualizerWidget):
+    """Bidirectional Disk I/O waveform: Read plots upward, Write plots downward from center."""
 
-    def __init__(self, read_color: str = "#3FB950", write_color: str = "#FFEA00", grid_color: str = "#32383D") -> None:
+    def __init__(self, history_len: int = 60, read_color: str = "#3FB950", write_color: str = "#FFEA00", grid_color: str = "#32383D") -> None:
         super().__init__(primary_color=read_color, grid_color=grid_color, secondary_color=write_color)
-        self._read = 0.0
-        self._write = 0.0
+        maxlen = max(15, history_len)
+        self._read_hist: deque[float] = deque([0.0] * maxlen, maxlen=maxlen)
+        self._write_hist: deque[float] = deque([0.0] * maxlen, maxlen=maxlen)
+
+    def set_history_length(self, length: int) -> None:
+        """Resize rolling Read/Write sample buffers."""
+        target = max(15, length)
+        if self._read_hist.maxlen != target:
+            r_items = list(self._read_hist)[-target:]
+            w_items = list(self._write_hist)[-target:]
+            self._read_hist = deque([0.0] * max(0, target - len(r_items)) + r_items, maxlen=target)
+            self._write_hist = deque([0.0] * max(0, target - len(w_items)) + w_items, maxlen=target)
+            self.update()
 
     def push_io(self, read_mb_s: float, write_mb_s: float) -> None:
-        """Update Read/Write MB/s values."""
-        self._read = max(0.0, float(read_mb_s))
-        self._write = max(0.0, float(write_mb_s))
+        """Append Read and Write MB/s samples and trigger repaint."""
+        self._read_hist.append(max(0.0, float(read_mb_s)))
+        self._write_hist.append(max(0.0, float(write_mb_s)))
         self.update()
+
+    def _draw_half(self, painter: QPainter, samples: list[float], inner: QRectF, mid_y: float, half_h: float, ceiling: float, color: QColor, upward: bool) -> None:
+        n = len(samples)
+        if n < 2:
+            return
+        line_path = QPainterPath()
+        area_path = QPainterPath()
+        area_path.moveTo(inner.left(), mid_y)
+        for i, val in enumerate(samples):
+            x = inner.left() + (inner.width() * i) / (n - 1)
+            ratio = min(1.0, val / ceiling)
+            offset = ratio * half_h
+            y = mid_y - offset if upward else mid_y + offset
+            if i == 0:
+                line_path.moveTo(x, y)
+            else:
+                line_path.lineTo(x, y)
+            area_path.lineTo(x, y)
+        area_path.lineTo(inner.right(), mid_y)
+        area_path.closeSubpath()
+
+        fill_col = QColor(color)
+        fill_col.setAlpha(65)
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(fill_col)
+        painter.drawPath(area_path)
+
+        painter.setPen(QPen(color, max(1.2, 1.5 * self._ui_scale)))
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawPath(line_path)
 
     def paintEvent(self, _event: object) -> None:
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
         inner = self._begin_frame(painter)
 
-        gap = max(2.0, 3.0 * self._ui_scale)
-        row_h = max(8.0, (inner.height() - gap) * 0.5)
-        tag_w = max(12.0, 14.0 * self._ui_scale)
-        font = QFont("Segoe UI", max(6, int(round(7.5 * self._ui_scale))), QFont.Weight.Bold)
-        painter.setFont(font)
+        mid_y = inner.center().y()
+        half_h = max(4.0, inner.height() * 0.5 - 1.0)
+        painter.setPen(QPen(self._grid_color, max(0.8, 0.9 * self._ui_scale)))
+        painter.drawLine(QPointF(inner.left(), mid_y), QPointF(inner.right(), mid_y))
 
-        segments = 12
-        for idx, (tag, val, col) in enumerate((("R", self._read, self._primary_color), ("W", self._write, self._secondary_color))):
-            y = inner.top() + idx * (row_h + gap)
-            painter.setPen(col)
-            painter.drawText(QRectF(inner.left(), y, tag_w, row_h), Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, tag)
-            lit = int(round(_io_log_ratio(val) * segments))
-            if val > 0.05 and lit == 0:
-                lit = 1
-            led_area = QRectF(inner.left() + tag_w + 2.0, y + 1.0, max(10.0, inner.width() - tag_w - 2.0), max(4.0, row_h - 2.0))
-            self._draw_led_row(painter, led_area, segments, lit, col)
+        r_samples = list(self._read_hist)
+        w_samples = list(self._write_hist)
+        ceiling = max(5.0, max(r_samples or [0.0]) * 1.2, max(w_samples or [0.0]) * 1.2)
+        self._draw_half(painter, r_samples, inner, mid_y, half_h, ceiling, self._primary_color, upward=True)
+        self._draw_half(painter, w_samples, inner, mid_y, half_h, ceiling, self._secondary_color, upward=False)
         painter.end()

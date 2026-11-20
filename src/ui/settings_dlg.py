@@ -563,24 +563,24 @@ class SettingsDialog(QDialog):
         v_form = QFormLayout(grp_viz)
 
         self.cmb_cpu_viz = self._make_viz_combo([
-            ("Live-Graph (Standard)", "graph"),
+            ("Live-Graph", "graph"),
             ("Kerne als Balken (Equalizer)", "core_bars"),
             ("Kern-Heatmap-Grid", "core_heatmap"),
         ])
         self.cmb_ram_viz = self._make_viz_combo([
-            ("Live-Graph (Standard)", "graph"),
+            ("Live-Graph", "graph"),
             ("Speicherblöcke", "grid_blocks"),
-            ("Segment-Füllbalken (0–100%)", "segmented_bar"),
+            ("Segment-Füllbalken", "segmented_bar"),
         ])
         self.cmb_pf_viz = self._make_viz_combo([
-            ("Live-Graph (Standard)", "graph"),
-            ("Log-Pulse-Meter (Peak-Hold)", "pulse_meter"),
-            ("Impuls-Balken (Spike-Historie)", "impulse_bars"),
+            ("Live-Graph", "graph"),
+            ("Impuls-Balken", "impulse_bars"),
+            ("Page-Matrix", "page_matrix"),
         ])
         self.cmb_disk_viz = self._make_viz_combo([
-            ("Dual-Live-Graph (Standard)", "graph"),
-            ("Dual-R/W-Balken (Peak-Hold)", "dual_meter"),
-            ("Retro-HDD-LED-Leiste", "activity_leds"),
+            ("Live-Graph", "graph"),
+            ("R/W-Meter (Peak-Hold)", "dual_meter"),
+            ("Spiegel-Graph (R/W)", "mirror_graph"),
         ])
 
         v_form.addRow("CPU-Auslastung:", self.cmb_cpu_viz)
@@ -588,9 +588,9 @@ class SettingsDialog(QDialog):
         v_form.addRow("Arbeitsspeicher (RAM):", self.cmb_ram_viz)
         self._set_tooltip(self.cmb_ram_viz, "Wählt zwischen Verlaufsgraph, 2er-Potenz-Speicherblöcken oder Segment-Balken.", v_form)
         v_form.addRow("PageFaults/sec:", self.cmb_pf_viz)
-        self._set_tooltip(self.cmb_pf_viz, "Wählt zwischen Verlaufsgraph, logarithmischem Peak-Hold-Meter oder Spike-Impulsen.", v_form)
+        self._set_tooltip(self.cmb_pf_viz, "Wählt zwischen Verlaufsgraph, Spike-Impulsen oder aufblitzender Page-Matrix.", v_form)
         v_form.addRow("Disk I/O (R/W):", self.cmb_disk_viz)
-        self._set_tooltip(self.cmb_disk_viz, "Wählt zwischen Dual-Graph, R/W-Peak-Hold-Balken oder Retro-LED-Leiste.", v_form)
+        self._set_tooltip(self.cmb_disk_viz, "Wählt zwischen Verlaufsgraph, R/W-Peak-Hold-Meter oder bidirektionalem Spiegel-Graph.", v_form)
         return grp_viz
 
     def _build_cpu_tab(self) -> QWidget:

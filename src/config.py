@@ -16,8 +16,8 @@ _HEX_COLOR_RE = re.compile(r"^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$")
 
 CPU_VIZ_MODES = ("graph", "core_bars", "core_heatmap")
 RAM_VIZ_MODES = ("graph", "grid_blocks", "segmented_bar")
-PF_VIZ_MODES = ("graph", "pulse_meter", "impulse_bars")
-DISK_VIZ_MODES = ("graph", "dual_meter", "activity_leds")
+PF_VIZ_MODES = ("graph", "impulse_bars", "page_matrix")
+DISK_VIZ_MODES = ("graph", "dual_meter", "mirror_graph")
 
 
 def _safe_choice(value: object, choices: tuple[str, ...], default: str) -> str:
