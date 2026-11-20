@@ -15,8 +15,8 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
   - Whitelist-Validierung für `cpu_viz_mode`, `ram_viz_mode`, `pf_viz_mode` und `disk_viz_mode` in `AppConfig`.
 
 ### Changed
-- **Einstellungsdialog `System`-Tab unterteilt (`src/ui/settings_dlg.py`):**
-  - Analog zum `Anzeige`-Tab über eine Segmented-Umschaltleiste in `Metriken & Laufwerk` und `Darstellung & Visualisierung` gegliedert.
+- **Einstellungsdialog `System`-Tab erweitert (`src/ui/settings_dlg.py`):**
+  - Neue Gruppe `Darstellungsstil pro Sektion` direkt im `System`-Tab ergänzt.
 
 ## [0.14.6] - 2026-11-20
 ### Changed

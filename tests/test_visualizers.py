@@ -104,15 +104,13 @@ def test_cpu_widget_renders_all_visualizer_modes() -> None:
     w.close()
 
 
-def test_settings_dialog_system_viz_subpage_and_save() -> None:
+def test_settings_dialog_system_viz_and_save() -> None:
     _ensure_qapp()
     cfg = AppConfig()
     cfg.save = lambda: None
     dlg = SettingsDialog(cfg, [], lambda: None, disks=[])
 
-    dlg._set_cpu_subpage(1)
-    assert dlg.cpu_stack.currentIndex() == 1
-    assert dlg.btn_sub_cpu_viz.isChecked()
+    assert dlg.cmb_ram_viz.itemText(1) == "Speicherblöcke"
 
     dlg.cmb_cpu_viz.setCurrentIndex(1)
     dlg.cmb_ram_viz.setCurrentIndex(1)

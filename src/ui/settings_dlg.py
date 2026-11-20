@@ -167,7 +167,7 @@ class SettingsDialog(QDialog):
         self.tabs.addTab(self._build_display_container_tab(), "Anzeige")
         self.tabs.addTab(self._wrap_in_scroll(self._build_clock_tab()), "Uhrzeit")
         self.tabs.addTab(self._wrap_in_scroll(self._build_gpu_tab()), "GPU")
-        self.tabs.addTab(self._build_cpu_container_tab(), "System")
+        self.tabs.addTab(self._wrap_in_scroll(self._build_cpu_tab()), "System")
         self.tabs.addTab(self._wrap_in_scroll(self._build_storage_tab()), "Datenträger")
         self.tabs.addTab(self._wrap_in_scroll(self._build_about_tab()), "Über")
 
@@ -550,62 +550,6 @@ class SettingsDialog(QDialog):
         layout.addStretch(1)
         return tab
 
-    def _build_cpu_container_tab(self) -> QWidget:
-        """Build the unified System tab with a segmented subpage switcher."""
-        container = QWidget()
-        layout = QVBoxLayout(container)
-        layout.setContentsMargins(0, 8, 0, 0)
-        layout.setSpacing(4)
-
-        bar_row = QHBoxLayout()
-        bar_row.setContentsMargins(9, 0, 9, 0)
-
-        seg_bar = QFrame()
-        seg_layout = QHBoxLayout(seg_bar)
-        seg_layout.setContentsMargins(3, 3, 3, 3)
-        seg_layout.setSpacing(3)
-
-        self.btn_sub_cpu_metrics = QPushButton("Metriken && Laufwerk")
-        self.btn_sub_cpu_metrics.setCheckable(True)
-        self.btn_sub_cpu_metrics.setChecked(True)
-        self.btn_sub_cpu_metrics.setMinimumWidth(165)
-        self.btn_sub_cpu_metrics.setCursor(Qt.CursorShape.PointingHandCursor)
-
-        self.btn_sub_cpu_viz = QPushButton("Darstellung && Visualisierung")
-        self.btn_sub_cpu_viz.setCheckable(True)
-        self.btn_sub_cpu_viz.setMinimumWidth(185)
-        self.btn_sub_cpu_viz.setCursor(Qt.CursorShape.PointingHandCursor)
-
-        self._cpu_seg_group = QButtonGroup(self)
-        self._cpu_seg_group.setExclusive(True)
-        self._cpu_seg_group.addButton(self.btn_sub_cpu_metrics, 0)
-        self._cpu_seg_group.addButton(self.btn_sub_cpu_viz, 1)
-        self._cpu_seg_group.idClicked.connect(self._set_cpu_subpage)
-
-        seg_layout.addWidget(self.btn_sub_cpu_metrics)
-        seg_layout.addWidget(self.btn_sub_cpu_viz)
-        self._style_display_segment_bar(seg_bar, "cpuSegmentBar")
-
-        bar_row.addWidget(seg_bar)
-        bar_row.addStretch(1)
-        layout.addLayout(bar_row)
-
-        self.cpu_stack = QStackedWidget()
-        self.cpu_stack.addWidget(self._wrap_in_scroll(self._build_cpu_tab()))
-        self.cpu_stack.addWidget(self._wrap_in_scroll(self._build_cpu_viz_tab()))
-        layout.addWidget(self.cpu_stack, 1)
-        return container
-
-    def _set_cpu_subpage(self, index: int) -> None:
-        """Switch subpage inside the System tab and sync segmented toggle state."""
-        if index not in (0, 1):
-            return
-        self.cpu_stack.setCurrentIndex(index)
-        if index == 0:
-            self.btn_sub_cpu_metrics.setChecked(True)
-        else:
-            self.btn_sub_cpu_viz.setChecked(True)
-
     @staticmethod
     def _make_viz_combo(options: list[tuple[str, str]]) -> QComboBox:
         cmb = QComboBox()
@@ -613,12 +557,8 @@ class SettingsDialog(QDialog):
             cmb.addItem(label, key)
         return cmb
 
-    def _build_cpu_viz_tab(self) -> QWidget:
-        """Build the Visualization subpage for CPU, RAM, PageFaults and Disk I/O."""
-        tab = QWidget()
-        layout = QVBoxLayout(tab)
-        layout.setSpacing(10)
-
+    def _build_cpu_viz_group(self) -> QGroupBox:
+        """Build the Visualization group box for CPU, RAM, PageFaults and Disk I/O."""
         grp_viz = QGroupBox("Darstellungsstil pro Sektion (Standard: Live-Graph)")
         v_form = QFormLayout(grp_viz)
 
@@ -629,7 +569,7 @@ class SettingsDialog(QDialog):
         ])
         self.cmb_ram_viz = self._make_viz_combo([
             ("Live-Graph (Standard)", "graph"),
-            ("2er-Potenz-Gitterbox (Speicherblöcke)", "grid_blocks"),
+            ("Speicherblöcke", "grid_blocks"),
             ("Segment-Füllbalken (0–100%)", "segmented_bar"),
         ])
         self.cmb_pf_viz = self._make_viz_combo([
@@ -651,10 +591,7 @@ class SettingsDialog(QDialog):
         self._set_tooltip(self.cmb_pf_viz, "Wählt zwischen Verlaufsgraph, logarithmischem Peak-Hold-Meter oder Spike-Impulsen.", v_form)
         v_form.addRow("Disk I/O (R/W):", self.cmb_disk_viz)
         self._set_tooltip(self.cmb_disk_viz, "Wählt zwischen Dual-Graph, R/W-Peak-Hold-Balken oder Retro-LED-Leiste.", v_form)
-
-        layout.addWidget(grp_viz)
-        layout.addStretch(1)
-        return tab
+        return grp_viz
 
     def _build_cpu_tab(self) -> QWidget:
         tab = QWidget()
@@ -693,6 +630,7 @@ class SettingsDialog(QDialog):
             c_form,
         )
         layout.addWidget(grp_cpu)
+        layout.addWidget(self._build_cpu_viz_group())
         layout.addStretch(1)
         return tab
 

@@ -18,11 +18,11 @@ def _log_ratio(value: float, max_ref: float = 4096.0) -> float:
     return min(1.0, math.log1p(value) / math.log1p(max_ref))
 
 
-def _sqrt_ratio(value: float, max_ref: float = 1000.0) -> float:
-    """Map MB/s throughput with sqrt curve so both 0.4 MB/s and 500+ MB/s are visible."""
+def _io_log_ratio(value: float) -> float:
+    """Map MB/s throughput logarithmically so 0.1-10 MB/s and 500+ MB/s are both clear."""
     if value <= 0.0:
         return 0.0
-    return min(1.0, math.sqrt(value) / math.sqrt(max_ref))
+    return min(1.0, math.log1p(value * 4.0) / math.log1p(2000.0))
 
 
 class PulseMeterWidget(BaseVisualizerWidget):
@@ -132,8 +132,8 @@ class DualIoMeterWidget(BaseVisualizerWidget):
         """Update Read/Write MB/s values and decaying peak markers."""
         self._read = max(0.0, float(read_mb_s))
         self._write = max(0.0, float(write_mb_s))
-        r_ratio = _sqrt_ratio(self._read)
-        w_ratio = _sqrt_ratio(self._write)
+        r_ratio = _io_log_ratio(self._read)
+        w_ratio = _io_log_ratio(self._write)
         self._read_peak = r_ratio if r_ratio >= self._read_peak else max(r_ratio, self._read_peak * 0.88)
         self._write_peak = w_ratio if w_ratio >= self._write_peak else max(w_ratio, self._write_peak * 0.88)
         self.update()
@@ -170,8 +170,8 @@ class DualIoMeterWidget(BaseVisualizerWidget):
 
         gap = max(2.0, 3.0 * self._ui_scale)
         row_h = max(8.0, (inner.height() - gap) * 0.5)
-        self._draw_meter_row(painter, QRectF(inner.left(), inner.top(), inner.width(), row_h), "R", _sqrt_ratio(self._read), self._read_peak, self._primary_color)
-        self._draw_meter_row(painter, QRectF(inner.left(), inner.top() + row_h + gap, inner.width(), row_h), "W", _sqrt_ratio(self._write), self._write_peak, self._secondary_color)
+        self._draw_meter_row(painter, QRectF(inner.left(), inner.top(), inner.width(), row_h), "R", _io_log_ratio(self._read), self._read_peak, self._primary_color)
+        self._draw_meter_row(painter, QRectF(inner.left(), inner.top() + row_h + gap, inner.width(), row_h), "W", _io_log_ratio(self._write), self._write_peak, self._secondary_color)
         painter.end()
 
 
@@ -205,7 +205,7 @@ class ActivityLedsWidget(BaseVisualizerWidget):
             y = inner.top() + idx * (row_h + gap)
             painter.setPen(col)
             painter.drawText(QRectF(inner.left(), y, tag_w, row_h), Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, tag)
-            lit = int(round(_sqrt_ratio(val) * segments))
+            lit = int(round(_io_log_ratio(val) * segments))
             if val > 0.05 and lit == 0:
                 lit = 1
             led_area = QRectF(inner.left() + tag_w + 2.0, y + 1.0, max(10.0, inner.width() - tag_w - 2.0), max(4.0, row_h - 2.0))
