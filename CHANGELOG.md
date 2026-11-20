@@ -4,6 +4,20 @@ Alle relevanten Änderungen an diesem Projekt werden in dieser Datei dokumentier
 Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/),
 und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 
+## [0.15.0] - 2026-11-20
+### Added
+- **Optionale Darstellungsmodi für `CPU & System` (`src/ui/visualizers/`, `src/ui/cpu_widget.py`, `src/config.py`, `src/sensors/models.py`, `src/sensors/psutil_provider.py`):**
+  - Standard bleibt überall der Live-Verlaufsgraph (`graph`).
+  - **CPU:** `Kerne als Balken (Equalizer)` (`core_bars`) und `Kern-Heatmap-Grid` (`core_heatmap`) auf Basis der Einzelkern-Auslastung (`CpuSystemSample.cpu_cores`).
+  - **RAM:** `2er-Potenz-Gitterbox (Speicherblöcke)` (`grid_blocks`, automatisch skaliert auf 8/16/32/64 Blöcke je nach installiertem RAM) und `Segment-Füllbalken (0–100%)` (`segmented_bar`).
+  - **PageFaults/sec:** `Log-Pulse-Meter (Peak-Hold)` (`pulse_meter`) und `Impuls-Balken (Spike-Historie)` (`impulse_bars`).
+  - **Disk I/O:** `Dual-R/W-Balken (Peak-Hold)` (`dual_meter`) und `Retro-HDD-LED-Leiste` (`activity_leds`) mit Wurzel-Skalierung.
+  - Whitelist-Validierung für `cpu_viz_mode`, `ram_viz_mode`, `pf_viz_mode` und `disk_viz_mode` in `AppConfig`.
+
+### Changed
+- **Einstellungsdialog `System`-Tab unterteilt (`src/ui/settings_dlg.py`):**
+  - Analog zum `Anzeige`-Tab über eine Segmented-Umschaltleiste in `Metriken & Laufwerk` und `Darstellung & Visualisierung` gegliedert.
+
 ## [0.14.6] - 2026-11-20
 ### Changed
 - **Theme-Auswahl & Monochrome-Palette verfeinert (`src/themes.py`, `src/ui/color_picker.py`, `src/ui/settings_dlg.py`):**

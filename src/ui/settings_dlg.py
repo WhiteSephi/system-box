@@ -167,7 +167,7 @@ class SettingsDialog(QDialog):
         self.tabs.addTab(self._build_display_container_tab(), "Anzeige")
         self.tabs.addTab(self._wrap_in_scroll(self._build_clock_tab()), "Uhrzeit")
         self.tabs.addTab(self._wrap_in_scroll(self._build_gpu_tab()), "GPU")
-        self.tabs.addTab(self._wrap_in_scroll(self._build_cpu_tab()), "System")
+        self.tabs.addTab(self._build_cpu_container_tab(), "System")
         self.tabs.addTab(self._wrap_in_scroll(self._build_storage_tab()), "Datenträger")
         self.tabs.addTab(self._wrap_in_scroll(self._build_about_tab()), "Über")
 
@@ -317,8 +317,9 @@ class SettingsDialog(QDialog):
         layout.addWidget(self.display_stack, 1)
         return container
 
-    def _style_display_segment_bar(self, bar: QFrame) -> None:
-        """Apply palette-aware high-contrast QSS to the segmented subpage bar."""
+    def _style_display_segment_bar(self, bar: QFrame, object_name: str = "displaySegmentBar") -> None:
+        """Apply palette-aware high-contrast QSS to a segmented subpage bar."""
+        bar.setObjectName(object_name)
         is_dark = self.palette().color(QPalette.ColorRole.Window).lightness() < 128
         if is_dark:
             track_bg = "rgba(255, 255, 255, 12)"
@@ -337,23 +338,23 @@ class SettingsDialog(QDialog):
 
         bar.setStyleSheet(
             f"""
-            QFrame#displaySegmentBar {{
+            QFrame#{object_name} {{
                 background-color: {track_bg};
                 border: 1px solid {track_border};
                 border-radius: 7px;
             }}
-            QFrame#displaySegmentBar QPushButton {{
+            QFrame#{object_name} QPushButton {{
                 background: transparent;
                 color: {btn_fg};
                 border: 1px solid transparent;
                 border-radius: 5px;
                 padding: 5px 14px;
             }}
-            QFrame#displaySegmentBar QPushButton:hover:!checked {{
+            QFrame#{object_name} QPushButton:hover:!checked {{
                 background-color: {hover_bg};
                 color: palette(window-text);
             }}
-            QFrame#displaySegmentBar QPushButton:checked {{
+            QFrame#{object_name} QPushButton:checked {{
                 background-color: {checked_bg};
                 color: {checked_fg};
                 border: 1px solid palette(highlight);
@@ -546,6 +547,112 @@ class SettingsDialog(QDialog):
             g_form,
         )
         layout.addWidget(grp_gpu)
+        layout.addStretch(1)
+        return tab
+
+    def _build_cpu_container_tab(self) -> QWidget:
+        """Build the unified System tab with a segmented subpage switcher."""
+        container = QWidget()
+        layout = QVBoxLayout(container)
+        layout.setContentsMargins(0, 8, 0, 0)
+        layout.setSpacing(4)
+
+        bar_row = QHBoxLayout()
+        bar_row.setContentsMargins(9, 0, 9, 0)
+
+        seg_bar = QFrame()
+        seg_layout = QHBoxLayout(seg_bar)
+        seg_layout.setContentsMargins(3, 3, 3, 3)
+        seg_layout.setSpacing(3)
+
+        self.btn_sub_cpu_metrics = QPushButton("Metriken && Laufwerk")
+        self.btn_sub_cpu_metrics.setCheckable(True)
+        self.btn_sub_cpu_metrics.setChecked(True)
+        self.btn_sub_cpu_metrics.setMinimumWidth(165)
+        self.btn_sub_cpu_metrics.setCursor(Qt.CursorShape.PointingHandCursor)
+
+        self.btn_sub_cpu_viz = QPushButton("Darstellung && Visualisierung")
+        self.btn_sub_cpu_viz.setCheckable(True)
+        self.btn_sub_cpu_viz.setMinimumWidth(185)
+        self.btn_sub_cpu_viz.setCursor(Qt.CursorShape.PointingHandCursor)
+
+        self._cpu_seg_group = QButtonGroup(self)
+        self._cpu_seg_group.setExclusive(True)
+        self._cpu_seg_group.addButton(self.btn_sub_cpu_metrics, 0)
+        self._cpu_seg_group.addButton(self.btn_sub_cpu_viz, 1)
+        self._cpu_seg_group.idClicked.connect(self._set_cpu_subpage)
+
+        seg_layout.addWidget(self.btn_sub_cpu_metrics)
+        seg_layout.addWidget(self.btn_sub_cpu_viz)
+        self._style_display_segment_bar(seg_bar, "cpuSegmentBar")
+
+        bar_row.addWidget(seg_bar)
+        bar_row.addStretch(1)
+        layout.addLayout(bar_row)
+
+        self.cpu_stack = QStackedWidget()
+        self.cpu_stack.addWidget(self._wrap_in_scroll(self._build_cpu_tab()))
+        self.cpu_stack.addWidget(self._wrap_in_scroll(self._build_cpu_viz_tab()))
+        layout.addWidget(self.cpu_stack, 1)
+        return container
+
+    def _set_cpu_subpage(self, index: int) -> None:
+        """Switch subpage inside the System tab and sync segmented toggle state."""
+        if index not in (0, 1):
+            return
+        self.cpu_stack.setCurrentIndex(index)
+        if index == 0:
+            self.btn_sub_cpu_metrics.setChecked(True)
+        else:
+            self.btn_sub_cpu_viz.setChecked(True)
+
+    @staticmethod
+    def _make_viz_combo(options: list[tuple[str, str]]) -> QComboBox:
+        cmb = QComboBox()
+        for label, key in options:
+            cmb.addItem(label, key)
+        return cmb
+
+    def _build_cpu_viz_tab(self) -> QWidget:
+        """Build the Visualization subpage for CPU, RAM, PageFaults and Disk I/O."""
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setSpacing(10)
+
+        grp_viz = QGroupBox("Darstellungsstil pro Sektion (Standard: Live-Graph)")
+        v_form = QFormLayout(grp_viz)
+
+        self.cmb_cpu_viz = self._make_viz_combo([
+            ("Live-Graph (Standard)", "graph"),
+            ("Kerne als Balken (Equalizer)", "core_bars"),
+            ("Kern-Heatmap-Grid", "core_heatmap"),
+        ])
+        self.cmb_ram_viz = self._make_viz_combo([
+            ("Live-Graph (Standard)", "graph"),
+            ("2er-Potenz-Gitterbox (Speicherblöcke)", "grid_blocks"),
+            ("Segment-Füllbalken (0–100%)", "segmented_bar"),
+        ])
+        self.cmb_pf_viz = self._make_viz_combo([
+            ("Live-Graph (Standard)", "graph"),
+            ("Log-Pulse-Meter (Peak-Hold)", "pulse_meter"),
+            ("Impuls-Balken (Spike-Historie)", "impulse_bars"),
+        ])
+        self.cmb_disk_viz = self._make_viz_combo([
+            ("Dual-Live-Graph (Standard)", "graph"),
+            ("Dual-R/W-Balken (Peak-Hold)", "dual_meter"),
+            ("Retro-HDD-LED-Leiste", "activity_leds"),
+        ])
+
+        v_form.addRow("CPU-Auslastung:", self.cmb_cpu_viz)
+        self._set_tooltip(self.cmb_cpu_viz, "Wählt zwischen Verlaufsgraph, Einzelkern-Balken oder Kern-Heatmap.", v_form)
+        v_form.addRow("Arbeitsspeicher (RAM):", self.cmb_ram_viz)
+        self._set_tooltip(self.cmb_ram_viz, "Wählt zwischen Verlaufsgraph, 2er-Potenz-Speicherblöcken oder Segment-Balken.", v_form)
+        v_form.addRow("PageFaults/sec:", self.cmb_pf_viz)
+        self._set_tooltip(self.cmb_pf_viz, "Wählt zwischen Verlaufsgraph, logarithmischem Peak-Hold-Meter oder Spike-Impulsen.", v_form)
+        v_form.addRow("Disk I/O (R/W):", self.cmb_disk_viz)
+        self._set_tooltip(self.cmb_disk_viz, "Wählt zwischen Dual-Graph, R/W-Peak-Hold-Balken oder Retro-LED-Leiste.", v_form)
+
+        layout.addWidget(grp_viz)
         layout.addStretch(1)
         return tab
 
@@ -943,6 +1050,14 @@ class SettingsDialog(QDialog):
             self.cmb_disk.addItem(f"{self.config.cpu_disk_device} (nicht verbunden)", self.config.cpu_disk_device)
         d_idx = self.cmb_disk.findData(self.config.cpu_disk_device)
         self.cmb_disk.setCurrentIndex(d_idx if d_idx >= 0 else 0)
+        for cmb, attr in (
+            (self.cmb_cpu_viz, "cpu_viz_mode"),
+            (self.cmb_ram_viz, "ram_viz_mode"),
+            (self.cmb_pf_viz, "pf_viz_mode"),
+            (self.cmb_disk_viz, "disk_viz_mode"),
+        ):
+            v_idx = cmb.findData(getattr(self.config, attr))
+            cmb.setCurrentIndex(v_idx if v_idx >= 0 else 0)
         self.chk_clock_sec.setChecked(self.config.clock_show_seconds)
         self.chk_clock_uptime.setChecked(self.config.clock_show_uptime)
         self.chk_clock_24h.setChecked(self.config.clock_24h)
@@ -983,6 +1098,13 @@ class SettingsDialog(QDialog):
         self.config.cpu_show_page_faults = self.chk_cpu_page_faults.isChecked()
         self.config.cpu_show_disk_io = self.chk_cpu_disk.isChecked()
         self.config.cpu_disk_device = str(self.cmb_disk.currentData() or "")
+        for cmb, attr in (
+            (self.cmb_cpu_viz, "cpu_viz_mode"),
+            (self.cmb_ram_viz, "ram_viz_mode"),
+            (self.cmb_pf_viz, "pf_viz_mode"),
+            (self.cmb_disk_viz, "disk_viz_mode"),
+        ):
+            setattr(self.config, attr, str(cmb.currentData() or "graph"))
         self.config.clock_show_seconds = self.chk_clock_sec.isChecked()
         self.config.clock_show_uptime = self.chk_clock_uptime.isChecked()
         self.config.clock_24h = self.chk_clock_24h.isChecked()
@@ -1043,6 +1165,8 @@ class SettingsDialog(QDialog):
         self.chk_cpu_page_faults.setChecked(defaults.cpu_show_page_faults)
         self.chk_cpu_disk.setChecked(defaults.cpu_show_disk_io)
         self.cmb_disk.setCurrentIndex(0)
+        for cmb in (self.cmb_cpu_viz, self.cmb_ram_viz, self.cmb_pf_viz, self.cmb_disk_viz):
+            cmb.setCurrentIndex(0)
         self.chk_clock_sec.setChecked(defaults.clock_show_seconds)
         self.chk_clock_uptime.setChecked(defaults.clock_show_uptime)
         self.chk_clock_24h.setChecked(defaults.clock_24h)

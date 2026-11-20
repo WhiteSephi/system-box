@@ -46,6 +46,7 @@ class CpuSystemSample:
 
     cpu_percent: float = 0.0
     cpu_max_core_percent: float = 0.0
+    cpu_cores: list[float] = field(default_factory=list)
     cpu_freq_mhz: float | None = None
     cpu_temp_c: float | None = None
     temp_source: str | None = None

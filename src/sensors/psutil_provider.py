@@ -201,6 +201,7 @@ class PsutilSystemProvider(SystemProvider):
         return CpuSystemSample(
             cpu_percent=round(cpu_percent, 1),
             cpu_max_core_percent=round(cpu_max_core, 1),
+            cpu_cores=[round(float(v), 1) for v in per_core],
             cpu_freq_mhz=round(cpu_freq_mhz, 0) if cpu_freq_mhz is not None else None,
             cpu_temp_c=round(cpu_temp_c, 1) if cpu_temp_c is not None else None,
             temp_source=temp_source,

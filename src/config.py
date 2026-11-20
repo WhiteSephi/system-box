@@ -14,6 +14,18 @@ from src.themes import DEFAULT_THEME_NAME, THEMES
 
 _HEX_COLOR_RE = re.compile(r"^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$")
 
+CPU_VIZ_MODES = ("graph", "core_bars", "core_heatmap")
+RAM_VIZ_MODES = ("graph", "grid_blocks", "segmented_bar")
+PF_VIZ_MODES = ("graph", "pulse_meter", "impulse_bars")
+DISK_VIZ_MODES = ("graph", "dual_meter", "activity_leds")
+
+
+def _safe_choice(value: object, choices: tuple[str, ...], default: str) -> str:
+    """Validate that value is one of the allowed string choices."""
+    if isinstance(value, str) and value in choices:
+        return value
+    return default
+
 
 def _safe_int(value: object, default: int, low: int | None = None, high: int | None = None) -> int:
     """Safely coerce an integer value (rejecting booleans) and clamp it to optional bounds."""
@@ -189,6 +201,10 @@ class AppConfig:
     cpu_show_disk_io: bool = True
     cpu_disk_device: str = ""
     cpu_show_page_faults: bool = False
+    cpu_viz_mode: str = "graph"
+    ram_viz_mode: str = "graph"
+    pf_viz_mode: str = "graph"
+    disk_viz_mode: str = "graph"
     gpu_show_power_fan: bool = True
     gpu_show_mem_clock: bool = False
     gpu_show_driver_version: bool = False
@@ -288,6 +304,10 @@ class AppConfig:
         self.cpu_show_disk_io = bool(self.cpu_show_disk_io)
         self.cpu_disk_device = self.cpu_disk_device if isinstance(self.cpu_disk_device, str) else ""
         self.cpu_show_page_faults = bool(self.cpu_show_page_faults)
+        self.cpu_viz_mode = _safe_choice(self.cpu_viz_mode, CPU_VIZ_MODES, "graph")
+        self.ram_viz_mode = _safe_choice(self.ram_viz_mode, RAM_VIZ_MODES, "graph")
+        self.pf_viz_mode = _safe_choice(self.pf_viz_mode, PF_VIZ_MODES, "graph")
+        self.disk_viz_mode = _safe_choice(self.disk_viz_mode, DISK_VIZ_MODES, "graph")
         self.gpu_show_power_fan = bool(self.gpu_show_power_fan)
         self.gpu_show_mem_clock = bool(self.gpu_show_mem_clock)
         self.gpu_show_driver_version = bool(self.gpu_show_driver_version)
