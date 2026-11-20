@@ -86,6 +86,13 @@ class SensorManager:
         except Exception:
             return []
 
+    def list_disk_choices(self) -> list[tuple[str, str]]:
+        """Return (device_key, display_label) pairs for physical disk selection."""
+        try:
+            return self._system_provider.list_disk_choices()
+        except Exception:
+            return []
+
     def poll(
         self,
         selected_gpu_index: int = 0,

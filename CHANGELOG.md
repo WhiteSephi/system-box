@@ -18,6 +18,7 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - **Einheitliche Benennung `System` & kompaktere Gruppe (`src/ui/cpu_widget.py`, `src/app.py`, `src/ui/settings_dlg.py`):**
   - Widget-Titel, Tray-Eintrag und Anzeige-Tab einheitlich auf `System` umbenannt.
   - Neue Gruppe `Darstellung` direkt im `System`-Tab ergänzt.
+  - Disk-I/O-Auswahl zeigt nun kompakte Laufwerksnamen inkl. Modell und zugeordneter Laufwerksbuchstaben (`PsutilSystemProvider.list_disk_choices()`).
 
 ## [0.14.6] - 2026-11-20
 ### Changed

@@ -79,6 +79,131 @@ class PsutilSystemProvider(SystemProvider):
         return [k for k in keys if not k.startswith(("loop", "zram", "ram"))]
 
     @staticmethod
+    def _get_windows_disk_models() -> dict[int, str]:
+        """Read physical disk FriendlyName values from Windows Registry."""
+        if sys.platform != "win32":
+            return {}
+        import winreg
+
+        models: dict[int, str] = {}
+        try:
+            with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"SYSTEM\CurrentControlSet\Services\disk\Enum") as enum_key:
+                count, _ = winreg.QueryValueEx(enum_key, "Count")
+                for idx in range(int(count)):
+                    try:
+                        pnp_id, _ = winreg.QueryValueEx(enum_key, str(idx))
+                        with winreg.OpenKey(
+                            winreg.HKEY_LOCAL_MACHINE, rf"SYSTEM\CurrentControlSet\Enum\{pnp_id}"
+                        ) as dev_key:
+                            name, _ = winreg.QueryValueEx(dev_key, "FriendlyName")
+                            cleaned = str(name).strip()
+                            if cleaned:
+                                models[idx] = cleaned
+                    except OSError:
+                        continue
+        except OSError:
+            pass
+        return models
+
+    @staticmethod
+    def _get_windows_disk_letters() -> dict[int, list[str]]:
+        """Map Windows physical disk index to mounted drive letters via IOCTL_VOLUME_GET_VOLUME_DISK_EXTENTS."""
+        if sys.platform != "win32":
+            return {}
+        from ctypes import wintypes
+
+        k32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        k32.CreateFileW.argtypes = [
+            wintypes.LPCWSTR,
+            wintypes.DWORD,
+            wintypes.DWORD,
+            ctypes.c_void_p,
+            wintypes.DWORD,
+            wintypes.DWORD,
+            wintypes.HANDLE,
+        ]
+        k32.CreateFileW.restype = wintypes.HANDLE
+        k32.DeviceIoControl.argtypes = [
+            wintypes.HANDLE,
+            wintypes.DWORD,
+            ctypes.c_void_p,
+            wintypes.DWORD,
+            ctypes.c_void_p,
+            wintypes.DWORD,
+            ctypes.POINTER(wintypes.DWORD),
+            ctypes.c_void_p,
+        ]
+        k32.DeviceIoControl.restype = wintypes.BOOL
+        k32.CloseHandle.argtypes = [wintypes.HANDLE]
+        k32.CloseHandle.restype = wintypes.BOOL
+
+        invalid_handle = wintypes.HANDLE(-1).value
+        letters: dict[int, list[str]] = {}
+        try:
+            partitions = psutil.disk_partitions(all=False)
+        except Exception:
+            return {}
+
+        for part in partitions:
+            mp = part.mountpoint or ""
+            if len(mp) < 2 or mp[1] != ":":
+                continue
+            drv = mp[:2]
+            handle = k32.CreateFileW(rf"\\.\{drv}", 0, 3, None, 3, 0, None)
+            if handle == invalid_handle:
+                continue
+            try:
+                buf = ctypes.create_string_buffer(64)
+                ret = wintypes.DWORD()
+                if k32.DeviceIoControl(handle, 0x00560000, None, 0, buf, 64, ctypes.byref(ret), None) and ret.value >= 12:
+                    disk_num = struct.unpack_from("<I", buf.raw, 8)[0]
+                    letters.setdefault(disk_num, []).append(drv)
+            finally:
+                k32.CloseHandle(handle)
+        return letters
+
+    @classmethod
+    def list_disk_choices(cls) -> list[tuple[str, str]]:
+        """Return (device_key, human_friendly_label) pairs for physical disks."""
+        keys = cls.list_disks()
+        if sys.platform == "win32":
+            models = cls._get_windows_disk_models()
+            letters = cls._get_windows_disk_letters()
+            choices: list[tuple[str, str]] = []
+            for key in keys:
+                idx: int | None = None
+                if key.lower().startswith("physicaldrive"):
+                    try:
+                        idx = int(key[len("physicaldrive"):])
+                    except ValueError:
+                        idx = None
+                model = models.get(idx, "") if idx is not None else ""
+                drv_list = letters.get(idx, []) if idx is not None else []
+                if model and drv_list:
+                    label = f"{model} ({', '.join(drv_list)})"
+                elif model:
+                    label = f"{model} ({key})"
+                elif drv_list:
+                    label = f"{key} ({', '.join(drv_list)})"
+                else:
+                    label = key
+                choices.append((key, label))
+            return choices
+
+        choices = []
+        for key in keys:
+            model = ""
+            model_path = Path("/sys/block") / key / "device" / "model"
+            try:
+                if model_path.is_file():
+                    model = model_path.read_text(encoding="utf-8", errors="ignore").strip()
+            except OSError:
+                model = ""
+            label = f"{model} ({key})" if model else key
+            choices.append((key, label))
+        return choices
+
+    @staticmethod
     def _safe_disk_io(disk_device: str = ""):
         try:
             if disk_device:

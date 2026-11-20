@@ -131,3 +131,20 @@ def test_settings_dialog_system_viz_and_save() -> None:
     assert dlg.cmb_pf_viz.currentData() == "graph"
     assert dlg.cmb_disk_viz.currentData() == "graph"
     dlg.close()
+
+
+def test_disk_choices_friendly_labels_in_settings() -> None:
+    _ensure_qapp()
+    cfg = AppConfig()
+    cfg.cpu_disk_device = "PhysicalDrive1"
+    cfg.save = lambda: None
+    choices = [
+        ("PhysicalDrive0", "Generic NVMe SSD 1TB (C:)"),
+        ("PhysicalDrive1", "Generic SATA SSD 500GB (D:, E:)"),
+    ]
+    dlg = SettingsDialog(cfg, [], lambda: None, disks=choices)
+    assert dlg.cmb_disk.itemText(1) == "Generic NVMe SSD 1TB (C:)"
+    assert dlg.cmb_disk.itemData(1) == "PhysicalDrive0"
+    assert dlg.cmb_disk.currentText() == "Generic SATA SSD 500GB (D:, E:)"
+    assert dlg.cmb_disk.currentData() == "PhysicalDrive1"
+    dlg.close()

@@ -165,7 +165,7 @@ class SystemBoxApp(QObject):
             gpus=self.sensor_manager.list_gpus(),
             on_apply=self.apply_all_configs,
             initial_tab=tab_key,
-            disks=self.sensor_manager.list_disks(),
+            disks=self.sensor_manager.list_disk_choices(),
         )
         self._settings_dlg.show()
         self._settings_dlg.raise_()

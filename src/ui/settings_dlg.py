@@ -63,7 +63,7 @@ class SettingsDialog(QDialog):
         on_apply: Callable[[], None],
         parent: QWidget | None = None,
         initial_tab: str = "",
-        disks: list[str] | None = None,
+        disks: list[str | tuple[str, str]] | None = None,
         storage_disks: list[DiskSpaceInfo] | None = None,
     ) -> None:
         super().__init__(parent)
@@ -617,8 +617,12 @@ class SettingsDialog(QDialog):
         )
         self.cmb_disk = QComboBox()
         self.cmb_disk.addItem("Alle Datenträger (Summe)", "")
-        for disk in self._disks:
-            self.cmb_disk.addItem(disk, disk)
+        for entry in self._disks:
+            if isinstance(entry, tuple):
+                dev_key, label = entry
+            else:
+                dev_key, label = entry, entry
+            self.cmb_disk.addItem(label, dev_key)
         self.chk_cpu_disk.toggled.connect(self.cmb_disk.setEnabled)
         c_form.addRow("", self.chk_cpu_max_core)
         c_form.addRow("", self.chk_cpu_page_faults)
