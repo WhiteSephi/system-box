@@ -2,6 +2,24 @@
 
 > Schlankes, plattformübergreifendes Live-Desktop-Widget-System (Windows 11 & Linux / KDE Plasma) zur Echtzeit-Überwachung von Uhrzeit/Datum, GPU- und CPU/System-Metriken – optisch und architektonisch angelehnt an [TrafficBox](https://github.com/WhiteSephi/traffic-box).
 
+<p align="center">
+  <img src="assets/preview_main.png" alt="SystemBox Live-Widgets Vorschau" width="720">
+  <br>
+  <em>Live-Desktop-Widgets: Uhrzeit & Datum, GPU-Telemetry (NVIDIA/AMD/Intel), System-Metriken & Datenträger</em>
+</p>
+
+<p align="center">
+  <img src="assets/preview_visualizers.png" alt="SystemBox Alternative Visualizer" width="540">
+  <br>
+  <em>Modulare Darstellungsmodi: CPU-Equalizer, Heatmap, RAM-Speicherblöcke, Page-Matrix & Dual/Spiegel-Graph</em>
+</p>
+
+<p align="center">
+  <img src="assets/preview_settings.png" alt="SystemBox Einstellungen" width="540">
+  <br>
+  <em>Umfangreicher Einstellungs-Dialog mit Visualizer-Auswahl, Themes, Skalierung & Sensor-Steuerung</em>
+</p>
+
 ---
 
 ## 🛠️ Tech-Stack & Voraussetzungen

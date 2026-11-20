@@ -60,6 +60,7 @@ class SettingsDialog(QDialog):
         "clock": 2,
         "gpu": 3,
         "cpu": 4,
+        "system": 4,
         "storage": 5,
         "about": 6,
     }
@@ -991,7 +992,7 @@ class SettingsDialog(QDialog):
 
         cfg_dir = AppConfig.config_path().parent
         loc_str = "Portabel" if cfg_dir.name == "local" else "Systemprofil"
-        lbl_cfg_val = QLabel(f"{loc_str} ({cfg_dir})")
+        lbl_cfg_val = QLabel(loc_str)
         lbl_cfg_val.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         lbl_cfg_val.setWordWrap(True)
         lbl_cfg_val.setToolTip(f"Pfad: {cfg_dir}")

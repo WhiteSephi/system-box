@@ -28,6 +28,8 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
   - **„Über“-Tab Design an TrafficBox angepasst (`src/ui/settings_dlg.py`, `src/ui/icons.py`):**
     - Über-Hero-Layout mit App-Icon, Version-Badge im Pill-Stil, GitHub-Autor-Zeile (`von WhiteSephi`), Tagline und 2×2 Quick-Action-Buttons mit GitHub-Vektor-Icon.
     - System-Diagnose & Rechtliches mit übersichtlichem Grid (Laufzeit, Speicherort, Hardware, Hinweise) und Schriftgröße `8.5pt`.
+  - **Dokumentations-Screenshots (`README.md`, `assets/`):**
+    - Hochauflösende, datensparsame Vorschau-Screenshots für Desktop-Widgets (`preview_main.png`), modulare Visualizer-Modi (`preview_visualizers.png`), Einstellungsdialog (`preview_settings.png`) und Info-Tab (`preview_about.png`) erstellt und in die `README.md` eingebettet.
 
 ## [0.14.6] - 2026-11-20
 ### Changed
