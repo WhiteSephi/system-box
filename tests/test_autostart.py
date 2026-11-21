@@ -33,12 +33,14 @@ def test_start_delay_clamping() -> None:
 
 
 def test_sync_kwin_skip_taskbar_rule_preserves_existing(tmp_path: Path) -> None:
+    import fcntl
     import os
     from unittest.mock import patch
 
     kwinrules = tmp_path / "kwinrulesrc"
     kwinrules.write_text(
-        "[General]\nOrder=TrafficBox-Position\n\n[TrafficBox-Position]\nDescription=TrafficBox Placement\n",
+        "[General]\ncustomKey=keep\nrules=TrafficBox-Position\nOrder=TrafficBox-Position\n\n"
+        "[TrafficBox-Position]\nDescription=TrafficBox Placement\nskptaskbar=true\n",
         encoding="utf-8",
     )
 
@@ -47,20 +49,55 @@ def test_sync_kwin_skip_taskbar_rule_preserves_existing(tmp_path: Path) -> None:
     ):
         assert sync_kwin_skip_taskbar_rule() is False
 
+    flock_ops: list[int] = []
+    real_flock = fcntl.flock
+
+    def _recording_flock(fd: int, op: int) -> None:
+        flock_ops.append(op)
+        real_flock(fd, op)
+
     with (
         patch("src.autostart.sys.platform", "linux"),
         patch.dict(os.environ, {"XDG_CONFIG_HOME": str(tmp_path)}),
         patch("shutil.which", return_value=None),
+        patch("fcntl.flock", side_effect=_recording_flock),
     ):
         assert sync_kwin_skip_taskbar_rule() is True
+        # Idempotent second call must not duplicate entries
+        assert sync_kwin_skip_taskbar_rule() is True
+
+    assert (tmp_path / ".kwinrulesrc.lock").is_file()
+    assert flock_ops == [fcntl.LOCK_EX, fcntl.LOCK_UN, fcntl.LOCK_EX, fcntl.LOCK_UN]
 
     updated = kwinrules.read_text(encoding="utf-8")
+    assert "customKey=keep" in updated
     assert "[TrafficBox-Position]" in updated
     assert "[SystemBox-Taskbar]" in updated
+    assert updated.count("[SystemBox-Taskbar]") == 1
     assert "wmclass=.*[Ss]ystem[Bb]ox.*" in updated
     assert "skiptaskbar=true" in updated
     assert "skiptaskbarrule=2" in updated
-    assert "TrafficBox-Position,SystemBox-Taskbar" in updated
+    assert "rules=TrafficBox-Position,SystemBox-Taskbar" in updated
+    assert "Order=TrafficBox-Position,SystemBox-Taskbar" in updated
+    assert "count=2" in updated
+
+
+def test_sync_kwin_skip_taskbar_rule_does_not_clobber_on_read_error(tmp_path: Path) -> None:
+    import os
+    from unittest.mock import patch
+
+    kwinrules = tmp_path / "kwinrulesrc"
+    original = "[General]\nOrder=TrafficBox-Position\n\n[TrafficBox-Position]\nDescription=Keep\n"
+    kwinrules.write_text(original, encoding="utf-8")
+
+    with (
+        patch("src.autostart.sys.platform", "linux"),
+        patch.dict(os.environ, {"XDG_CONFIG_HOME": str(tmp_path)}),
+        patch.object(Path, "read_text", side_effect=OSError("permission denied")),
+    ):
+        assert sync_kwin_skip_taskbar_rule() is False
+
+    assert kwinrules.read_text(encoding="utf-8") == original
 
 
 def test_autostart_path_escaping(tmp_path: Path) -> None:

@@ -69,7 +69,7 @@ def set_x11_skip_taskbar_libx11(wid: int) -> bool:
             return False
 
         xa_atom = 4
-        prop_mode_replace = 0
+        prop_mode_append = 2  # Preserve existing _NET_WM_STATE atoms such as _NET_WM_STATE_ABOVE
         atoms = (ctypes.c_ulong * 2)(atom_skip_taskbar, atom_skip_pager)
         x11.XChangeProperty(
             display,
@@ -77,7 +77,7 @@ def set_x11_skip_taskbar_libx11(wid: int) -> bool:
             atom_state,
             xa_atom,
             32,
-            prop_mode_replace,
+            prop_mode_append,
             atoms,
             2,
         )

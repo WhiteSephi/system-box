@@ -151,17 +151,75 @@ def set_autostart(enabled: bool) -> bool:
         return False
 
 
+def _merge_kwin_skip_taskbar_rule(content: str, rule_name: str, rule_section: str) -> str:
+    """Insert or update `rule_name` in kwinrulesrc text while preserving foreign sections and Order=/rules=."""
+    import re
+
+    clean_section = rule_section.strip()
+    pattern = rf"(?m)^\[{re.escape(rule_name)}\].*?(?=\n\[|\Z)"
+    if re.search(pattern, content, flags=re.DOTALL):
+        content = re.sub(pattern, lambda _: clean_section, content, flags=re.DOTALL)
+    else:
+        content = (content.rstrip() + "\n\n" + clean_section) if content.strip() else clean_section
+
+    gen_match = re.search(r"(?m)^\[General\](.*?)(?=\n\[|\Z)", content, flags=re.DOTALL)
+    if gen_match:
+        gen_body = gen_match.group(1)
+        r_m = re.search(r"(?m)^rules=([^\n]*)", gen_body)
+        rules_list = [r.strip() for r in r_m.group(1).split(",") if r.strip()] if r_m else []
+        if rule_name not in rules_list:
+            rules_list.append(rule_name)
+
+        o_m = re.search(r"(?m)^Order=([^\n]*)", gen_body)
+        order_list = [r.strip() for r in o_m.group(1).split(",") if r.strip()] if o_m else []
+        if rule_name not in order_list:
+            order_list.append(rule_name)
+
+        count_val = max(len(rules_list), len(order_list), 1)
+        lines = [
+            line
+            for line in gen_body.split("\n")
+            if line.strip() and not line.startswith(("rules=", "Order=", "count="))
+        ]
+        new_gen = (
+            "[General]\n"
+            + "\n".join(
+                lines
+                + [
+                    f"count={count_val}",
+                    f"rules={','.join(rules_list)}",
+                    f"Order={','.join(order_list)}",
+                ]
+            )
+            + "\n"
+        )
+        content = content[: gen_match.start()] + new_gen + content[gen_match.end() :]
+    else:
+        content = f"[General]\ncount=1\nrules={rule_name}\nOrder={rule_name}\n\n" + content
+
+    return content.strip() + "\n"
+
+
 def sync_kwin_skip_taskbar_rule() -> bool:
-    """Register or update a KWin window rule on KDE Plasma to hide SystemBox widgets from taskbar and Alt+Tab."""
+    """Register or update a KWin window rule on KDE Plasma to hide SystemBox widgets from taskbar and Alt+Tab.
+
+    Serializes access to ~/.config/kwinrulesrc via ~/.config/.kwinrulesrc.lock (fcntl.flock)
+    so concurrent autostart launches (e.g., SystemBox + TrafficBox) cannot overwrite each other.
+    """
     if not sys.platform.startswith("linux"):
         return False
 
-    import re
     import shutil
     import subprocess
 
+    try:
+        import fcntl
+    except ImportError:
+        fcntl = None
+
     config_home = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
     kwinrules = config_home / "kwinrulesrc"
+    lock_path = config_home / ".kwinrulesrc.lock"
 
     rule_name = "SystemBox-Taskbar"
     rule_section = (
@@ -177,66 +235,50 @@ def sync_kwin_skip_taskbar_rule() -> bool:
     )
 
     try:
-        content = kwinrules.read_text(encoding="utf-8") if kwinrules.is_file() else "[General]\ncount=0\nrules=\nOrder=\n"
-    except OSError:
-        content = "[General]\ncount=0\nrules=\nOrder=\n"
-
-    pattern = rf"\[{re.escape(rule_name)}\].*?(?=\n\[|\Z)"
-    if re.search(pattern, content, flags=re.DOTALL):
-        content = re.sub(pattern, rule_section.strip(), content, flags=re.DOTALL)
-    else:
-        content = content.rstrip() + "\n\n" + rule_section.strip()
-
-    gen_match = re.search(r"\[General\](.*?)(?=\n\[|\Z)", content, flags=re.DOTALL)
-    if gen_match:
-        gen_body = gen_match.group(1)
-        r_m = re.search(r"rules=([^\n]*)", gen_body)
-        rules_list = [r.strip() for r in r_m.group(1).split(",") if r.strip()] if r_m else []
-        if rule_name not in rules_list:
-            rules_list.append(rule_name)
-
-        o_m = re.search(r"Order=([^\n]*)", gen_body)
-        order_list = [r.strip() for r in o_m.group(1).split(",") if r.strip()] if o_m else []
-        if rule_name not in order_list:
-            order_list.append(rule_name)
-
-        count_val = max(len(rules_list), len(order_list), 1)
-        lines = [line for line in gen_body.split("\n") if not line.startswith(("rules=", "Order=", "count="))]
-        lines = [line for line in lines if line.strip()]
-        new_gen = (
-            "\n[General]\n"
-            + "\n".join(
-                lines
-                + [
-                    f"count={count_val}",
-                    f"rules={','.join(rules_list)}",
-                    f"Order={','.join(order_list)}",
-                ]
-            )
-            + "\n"
-        )
-        content = content[: gen_match.start()] + new_gen.lstrip() + content[gen_match.end() :]
-    else:
-        content = f"[General]\ncount=1\nrules={rule_name}\nOrder={rule_name}\n\n" + content
-
-    try:
-        atomic_write_text(kwinrules, content.strip() + "\n")
+        config_home.mkdir(parents=True, exist_ok=True)
     except OSError as exc:
         if sys.stderr is not None:
-            print(f"[WARN] kwinrulesrc konnte nicht geschrieben werden: {exc}", file=sys.stderr)
+            print(f"[WARN] Konfigurationsordner für kwinrulesrc konnte nicht erstellt werden: {exc}", file=sys.stderr)
         return False
 
-    qdbus_bin = shutil.which("qdbus6") or shutil.which("qdbus")
-    if qdbus_bin:
-        try:
-            subprocess.run(
-                [qdbus_bin, "org.kde.KWin", "/KWin", "reconfigure"],
-                check=False,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                timeout=1.0,
-            )
-        except (OSError, subprocess.SubprocessError) as exc:
-            if sys.stderr is not None:
-                print(f"[WARN] KWin-Reload fehlgeschlagen: {exc}", file=sys.stderr)
+    changed = False
+    try:
+        with lock_path.open("a+", encoding="utf-8") as lock_file:
+            if fcntl is not None:
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+            try:
+                if kwinrules.is_file():
+                    existing = kwinrules.read_text(encoding="utf-8")
+                else:
+                    existing = ""
+                updated = _merge_kwin_skip_taskbar_rule(
+                    existing if existing.strip() else "[General]\ncount=0\nrules=\nOrder=\n",
+                    rule_name,
+                    rule_section,
+                )
+                if updated != existing:
+                    atomic_write_text(kwinrules, updated)
+                    changed = True
+            finally:
+                if fcntl is not None:
+                    fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+    except OSError as exc:
+        if sys.stderr is not None:
+            print(f"[WARN] kwinrulesrc konnte nicht aktualisiert werden: {exc}", file=sys.stderr)
+        return False
+
+    if changed:
+        qdbus_bin = shutil.which("qdbus6") or shutil.which("qdbus")
+        if qdbus_bin:
+            try:
+                subprocess.run(
+                    [qdbus_bin, "org.kde.KWin", "/KWin", "reconfigure"],
+                    check=False,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    timeout=1.0,
+                )
+            except (OSError, subprocess.SubprocessError) as exc:
+                if sys.stderr is not None:
+                    print(f"[WARN] KWin-Reload fehlgeschlagen: {exc}", file=sys.stderr)
     return True

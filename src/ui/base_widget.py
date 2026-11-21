@@ -263,6 +263,7 @@ class BaseDesktopWidget(QWidget):
         self._apply_x11_skip_taskbar()
         if sys.platform.startswith("linux"):
             QTimer.singleShot(50, self._apply_x11_skip_taskbar)
+            QTimer.singleShot(250, self._apply_x11_skip_taskbar)
 
     def _apply_x11_skip_taskbar(self) -> None:
         """Ensure _NET_WM_STATE_SKIP_TASKBAR is set on X11/XWayland surfaces to hide from taskbars."""

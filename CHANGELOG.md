@@ -4,6 +4,13 @@ Alle relevanten Änderungen an diesem Projekt werden in dieser Datei dokumentier
 Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/),
 und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 
+## [0.15.1] - 2026-11-21
+### Fixed
+- **Linux/KDE Taskbar-Ausblenden & `kwinrulesrc`-Synchronisation gehärtet (`src/autostart.py`, `src/ui/linux_x11.py`, `src/ui/base_widget.py`):**
+  - `sync_kwin_skip_taskbar_rule()` serialisiert Zugriffe auf `~/.config/kwinrulesrc` nun über `~/.config/.kwinrulesrc.lock` (`fcntl.flock`), sodass gleichzeitige Autostarts von `SystemBox` und `TrafficBox` sich nicht mehr gegenseitig überschreiben.
+  - Fremde Sektionen, `Order=`/`rules=` sowie weitere `[General]`-Schlüssel bleiben erhalten; bei Lesefehlern wird die bestehende `kwinrulesrc` nicht mehr überschrieben und unnötige Schreib-/KWin-Reload-Zyklen werden vermieden.
+  - `set_x11_skip_taskbar_libx11()` nutzt `PropModeAppend` statt `PropModeReplace` (erhält `_NET_WM_STATE_ABOVE` bei *Immer im Vordergrund*) zusätzlich zur EWMH-`ClientMessage`, und `BaseDesktopWidget.showEvent()` wiederholt das X11-Taskbar-Flag zusätzlich nach `250 ms` für langsame Autostarts.
+
 ## [0.15.0] - 2026-11-20
 ### Added
 - **Optionale Darstellungsmodi für `CPU & System` (`src/ui/visualizers/`, `src/ui/cpu_widget.py`, `src/config.py`, `src/sensors/models.py`, `src/sensors/psutil_provider.py`):**
