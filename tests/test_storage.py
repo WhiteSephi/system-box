@@ -122,6 +122,7 @@ def test_settings_dialog_storage_drive_selection(monkeypatch) -> None:
     assert app is not None
 
     cfg = AppConfig()
+    cfg.save = lambda: True
     cfg.storage_hidden_mountpoints = ["D:\\"]
     disks = [
         DiskSpaceInfo(device="C:\\", mountpoint="C:\\", label="Laufwerk (C:)", fstype="NTFS", total_gb=500.0, used_gb=250.0, free_gb=250.0, percent=50.0),
@@ -133,6 +134,7 @@ def test_settings_dialog_storage_drive_selection(monkeypatch) -> None:
 
     dlg._storage_drive_checks["C:\\"].setChecked(False)
     dlg._storage_drive_checks["D:\\"].setChecked(True)
-    dlg._save_to_config()
+    with patch("src.ui.settings_dlg.set_autostart"):
+        dlg._save_to_config()
     assert cfg.storage_hidden_mountpoints == ["C:\\"]
     dlg.close()

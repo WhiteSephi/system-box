@@ -121,7 +121,8 @@ def test_settings_dialog_diagnostics_buttons(tmp_path: Path) -> None:
 
         # Save debug logging
         dlg.chk_debug_logging.setChecked(True)
-        dlg._save_to_config()
+        with patch("src.ui.settings_dlg.set_autostart"):
+            dlg._save_to_config()
         assert cfg.debug_logging is True
 
         dlg.close()

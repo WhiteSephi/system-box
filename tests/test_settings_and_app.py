@@ -74,16 +74,24 @@ def test_settings_dialog_themes_disks_and_hardware_label() -> None:
 
 
 def test_context_menu_matches_trafficbox_layout() -> None:
+    from src.ui.clock_widget import ClockWidget
+    from src.ui.gpu_widget import GpuWidget
+    from src.ui.storage_widget import StorageWidget
+
     _ensure_qapp()
     cfg = AppConfig()
     w = CpuSystemWidget(cfg)
     captured: list[str] = []
+    emitted_tabs: list[str] = []
+    w.settings_requested.connect(emitted_tabs.append)
 
     def capture_and_close() -> None:
         for top in QApplication.topLevelWidgets():
             if isinstance(top, QMenu) and top.isVisible():
                 for act in top.actions():
                     captured.append("---" if act.isSeparator() else act.text())
+                top.actions()[0].trigger()
+                top.actions()[-2].trigger()
                 top.close()
 
     QTimer.singleShot(50, capture_and_close)
@@ -100,7 +108,22 @@ def test_context_menu_matches_trafficbox_layout() -> None:
         "Über SystemBox...",
         "Beenden",
     ]
+    assert emitted_tabs == ["cpu", "about"]
     w.close()
+
+    # Verify gear/settings tab keys for all remaining widgets
+    for cls, expected_key in (
+        (ClockWidget, "clock"),
+        (GpuWidget, "gpu"),
+        (StorageWidget, "storage"),
+    ):
+        widget = cls(cfg)
+        tabs: list[str] = []
+        widget.settings_requested.connect(tabs.append)
+        widget.settings_requested.emit(widget.widget_key)
+        assert tabs == [expected_key]
+        assert expected_key in SettingsDialog.TAB_KEYS
+        widget.close()
 
 
 def test_psutil_per_disk_io_selection_and_switch_reset() -> None:
@@ -173,7 +196,11 @@ def test_settings_dialog_compact_tabs_and_display_subpages() -> None:
         "Datenträger",
         "Über",
     ]
-    assert dlg.tabs.tabBar().sizeHint().width() <= dlg.tabs.width()
+    if app.platformName() != "offscreen":
+        assert dlg.tabs.tabBar().sizeHint().width() <= dlg.tabs.width()
+    else:
+        # Offscreen QPA falls back to wider generic fonts than native Segoe UI / Noto Sans
+        assert dlg.tabs.tabBar().sizeHint().width() <= 780
 
     dlg.select_tab("theme")
     assert dlg.tabs.currentIndex() == 1
@@ -191,9 +218,11 @@ def test_settings_dialog_compact_tabs_and_display_subpages() -> None:
     assert dlg.display_stack.currentIndex() == 0
 
     for key, expected_idx in (
+        ("general", 0),
         ("clock", 2),
         ("gpu", 3),
         ("cpu", 4),
+        ("system", 4),
         ("storage", 5),
         ("about", 6),
     ):

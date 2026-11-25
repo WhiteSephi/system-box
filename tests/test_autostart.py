@@ -33,9 +33,15 @@ def test_start_delay_clamping() -> None:
 
 
 def test_sync_kwin_skip_taskbar_rule_preserves_existing(tmp_path: Path) -> None:
-    import fcntl
     import os
+    import sys
+    from types import SimpleNamespace
     from unittest.mock import patch
+
+    try:
+        import fcntl as real_fcntl
+    except ImportError:
+        real_fcntl = None
 
     kwinrules = tmp_path / "kwinrulesrc"
     kwinrules.write_text(
@@ -50,24 +56,36 @@ def test_sync_kwin_skip_taskbar_rule_preserves_existing(tmp_path: Path) -> None:
         assert sync_kwin_skip_taskbar_rule() is False
 
     flock_ops: list[int] = []
-    real_flock = fcntl.flock
+    if real_fcntl is not None:
+        lock_ex, lock_un = real_fcntl.LOCK_EX, real_fcntl.LOCK_UN
+        orig_flock = real_fcntl.flock
 
-    def _recording_flock(fd: int, op: int) -> None:
-        flock_ops.append(op)
-        real_flock(fd, op)
+        def _recording_flock(fd: int, op: int) -> None:
+            flock_ops.append(op)
+            orig_flock(fd, op)
+
+        fcntl_ctx = patch("fcntl.flock", side_effect=_recording_flock)
+    else:
+        lock_ex, lock_un = 2, 8
+
+        def _fake_flock(fd: int, op: int) -> None:
+            flock_ops.append(op)
+
+        fake_fcntl = SimpleNamespace(LOCK_EX=lock_ex, LOCK_UN=lock_un, flock=_fake_flock)
+        fcntl_ctx = patch.dict(sys.modules, {"fcntl": fake_fcntl})
 
     with (
         patch("src.autostart.sys.platform", "linux"),
         patch.dict(os.environ, {"XDG_CONFIG_HOME": str(tmp_path)}),
         patch("shutil.which", return_value=None),
-        patch("fcntl.flock", side_effect=_recording_flock),
+        fcntl_ctx,
     ):
         assert sync_kwin_skip_taskbar_rule() is True
         # Idempotent second call must not duplicate entries
         assert sync_kwin_skip_taskbar_rule() is True
 
     assert (tmp_path / ".kwinrulesrc.lock").is_file()
-    assert flock_ops == [fcntl.LOCK_EX, fcntl.LOCK_UN, fcntl.LOCK_EX, fcntl.LOCK_UN]
+    assert flock_ops == [lock_ex, lock_un, lock_ex, lock_un]
 
     updated = kwinrules.read_text(encoding="utf-8")
     assert "customKey=keep" in updated
