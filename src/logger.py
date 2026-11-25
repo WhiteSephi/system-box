@@ -98,6 +98,8 @@ def _install_qt_message_handler() -> None:
     qt_logger = logging.getLogger("systembox.qt")
 
     def _qt_msg_handler(mode: QtMsgType, _context: object, message: str) -> None:
+        if sys.is_finalizing():
+            return
         if mode == QtMsgType.QtDebugMsg:
             return
         if mode == QtMsgType.QtInfoMsg:
